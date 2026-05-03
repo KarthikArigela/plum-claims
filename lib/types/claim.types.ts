@@ -12,7 +12,10 @@ export interface TraceEntry {
 export interface UploadedDocument {
   id: string;
   type: DocumentType;
-  content: string; // The extracted text or raw content of the document
+  content: string;               /** @deprecated Use base64Data + mimeType for all real document processing */ 
+  base64Data: string;            // Base64-encoded file bytes — primary data for LLM calls
+  mimeType: string;              // 'image/jpeg' | 'image/png' | 'application/pdf'
+  fileName?: string;             // Original filename for logging/tracing
 }
 
 export interface ClaimHistoryEntry {

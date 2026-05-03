@@ -44,6 +44,9 @@ export async function processClaimPipeline(
   // ── Stage 2: Information Extraction ────────────────────────────────
   let extraction;
   try {
+    if (claim.simulateComponentFailure) {
+      throw new Error('Simulated component failure to avoid crashing');
+    }
     extraction = await extractInformation(claim.documents);
     allTrace.push(...extraction.trace);
     // Penalise systemConfidence proportional to extraction confidence

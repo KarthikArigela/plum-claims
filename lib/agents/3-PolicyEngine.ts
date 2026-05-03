@@ -128,9 +128,8 @@ export class PolicyEngine {
     // 8. Diagnosis/treatment exclusions
     let hasExclusions = false;
     for (const diagnosis of allDiagnoses) {
-      const lowerDiag = diagnosis.toLowerCase();
       for (const excl of policy.exclusions.conditions) {
-        if (lowerDiag.includes(excl.toLowerCase().split(' ')[0])) { 
+        if (this.isExclusionMatch(diagnosis, excl)) {
           hasExclusions = true;
           addCheck('EXCLUDED_CONDITION', false, `Diagnosis matches excluded condition: ${excl}`);
         }
@@ -143,9 +142,8 @@ export class PolicyEngine {
     const allCategoryExclusions = [...categorySpecificExclusions, ...ruleExclusions];
 
     for (const item of allItems) {
-      const lowerItem = item.description.toLowerCase();
       for (const excl of allCategoryExclusions) {
-        if (lowerItem.includes(excl.toLowerCase())) {
+        if (this.isExclusionMatch(item.description, excl)) {
           partialApprovalDetails.rejected.push({ item: item.description, reason: `Exclusion: ${excl}` });
         }
       }
@@ -293,5 +291,56 @@ export class PolicyEngine {
   private lowerDiagMatch(description: string, tests: string[]) {
     const lowerDesc = description.toLowerCase();
     return tests.some(t => lowerDesc.includes(t.toLowerCase()));
+  }
+
+  // ── Exclusion Matching ─────────────────────────────────────────────
+  //
+  // Exclusion phrases are read directly from policy_terms.json and
+  // tokenized at match time. No developer synonyms, no hardcoded keyword
+  // maps — everything derives from the policy file.
+  //
+  // Known limitation: semantic paraphrasing (e.g. "nose job" for "cosmetic
+  // rhinoplasty") will not match. A production system would use
+  // embedding-based similarity for this.
+
+  // Words too generic to carry exclusion-specific meaning on their own
+  private static readonly EXCLUSION_STOP_WORDS = new Set([
+    'and', 'or', 'of', 'the', 'in', 'for', 'a', 'an', 'to', 'non',
+    'surgery', 'treatment', 'program', 'programs', 'procedure',
+    'procedures', 'therapy', 'services', 'related', 'necessary',
+    'health', 'medical', 'clinical',
+  ]);
+
+  /**
+   * Check if text matches an exclusion phrase from the policy.
+   *
+   * Tokenizes the exclusion phrase into significant words (dropping generic
+   * stop words), then checks if ANY significant word appears in the text.
+   * Short words (≤5 chars) use word-boundary regex to prevent substring
+   * false positives (e.g. "war" inside "warfarin").
+   *
+   * Used for both diagnosis-level and line-item exclusion checks.
+   */
+  private isExclusionMatch(text: string, exclusion: string): boolean {
+    const lowerText = text.toLowerCase();
+
+    // Tokenize the exclusion phrase from the policy JSON
+    const significantWords = exclusion
+      .toLowerCase()
+      .replace(/[()]/g, '')
+      .split(/[\s\-]+/)
+      .filter(w => w.length > 3 && !PolicyEngine.EXCLUSION_STOP_WORDS.has(w));
+
+    if (significantWords.length === 0) return false;
+
+    // Any single significant concept word is enough for a match
+    return significantWords.some(word => {
+      if (word.length <= 5) {
+        // Word-boundary check for short words to prevent substring false positives
+        const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(`\\b${escaped}\\b`, 'i').test(lowerText);
+      }
+      return lowerText.includes(word);
+    });
   }
 }

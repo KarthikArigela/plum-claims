@@ -34,7 +34,9 @@ async function main() {
       {
         id: 'doc_001',
         type: 'PRESCRIPTION',
-        content: 'Mock'
+        content: '',
+        base64Data: '',
+        mimeType: 'image/jpeg'
       }
     ]
   };
