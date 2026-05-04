@@ -22,19 +22,73 @@ interface ClaimResult {
   degradedComponents: string[];
 }
 
-const STAGE_LABELS: Record<string, string> = {
-  DocumentVerification:  "Document Verification",
-  InformationExtraction: "Information Extraction",
-  POLICY_ENGINE:         "Policy Engine",
-  FraudDetection:        "Fraud Detection",
-  FINANCIAL:             "Financial Calculation",
+// Human-readable names for individual check IDs emitted by agents
+const CHECK_LABELS: Record<string, string> = {
+  // DocumentVerifier
+  FileDataCheck:              "File received",
+  DocumentClassification:     "Document identified",
+  RequiredDocumentCheck:      "Required paperwork",
+  ReadabilityCheck:           "Can we read this?",
+  CrossDocumentConsistency:   "Patient name match",
+  RequirementsLookup:         "Policy requirements",
+  ProviderExtracted:          "Provider identified",
+  DiagnosisExtracted:         "Diagnosis noted",
+  // InformationExtractor
+  Extract_PRESCRIPTION:       "Prescription details",
+  Extract_HOSPITAL_BILL:      "Hospital bill details",
+  Extract_LAB_REPORT:         "Lab report details",
+  Extract_PHARMACY_BILL:      "Pharmacy bill details",
+  Extract_DENTAL_REPORT:      "Dental report details",
+  Extract_DISCHARGE_SUMMARY:  "Discharge summary",
+  // PolicyEngine
+  "Member Exists":            "Member found",
+  MEMBER_NOT_FOUND:           "Member check",
+  "Policy Active":            "Policy active",
+  POLICY_INACTIVE:            "Policy active",
+  "Submission Deadline":      "Submitted on time",
+  SUBMISSION_LATE:            "Submission deadline",
+  "Minimum Amount":           "Claim amount",
+  MINIMUM_AMOUNT_NOT_MET:     "Claim amount",
+  "Initial Waiting Period":   "Waiting period",
+  WAITING_PERIOD:             "Waiting period",
+  "Condition Waiting Period": "Condition waiting period",
+  "Category Covered":         "Category covered",
+  CATEGORY_NOT_COVERED:       "Category covered",
+  "Diagnosis Exclusions":     "Exclusions check",
+  EXCLUDED_CONDITION:         "Exclusions check",
+  "Exclusions (Partial)":     "Partial exclusions",
+  "Pre-authorization":        "Pre-authorisation",
+  PRE_AUTH_MISSING:           "Pre-authorisation",
+  "Annual OPD Limit":         "Annual limit",
+  ANNUAL_LIMIT_EXCEEDED:      "Annual limit",
+  "Category Sub-limit":       "Category limit",
+  "Per-claim Limit":          "Per-claim limit",
+  PER_CLAIM_EXCEEDED:         "Per-claim limit",
+  // FraudDetector
+  HighValueCheck:             "Claim amount check",
+  AutoManualReviewCheck:      "Review threshold",
+  SameDayClaimsCheck:         "Same-day activity",
+  MonthlyClaimsCheck:         "Monthly activity",
+  FraudRulesCheck:            "Overall integrity",
+  // Financial
+  "Network Discount":         "Network discount",
+  Copay:                      "Your co-pay",
+  "Final Approval":           "Refund calculated",
 };
 
-const DECISION_STYLES: Record<Decision, { color: string; glow: string; label: string }> = {
-  APPROVED:      { color: "text-status-approved", glow: "shadow-[0_0_20px_rgba(74,222,128,0.25)]", label: "Approved" },
-  PARTIAL:       { color: "text-status-manual",   glow: "shadow-[0_0_20px_rgba(251,191,36,0.25)]", label: "Partially Approved" },
-  REJECTED:      { color: "text-status-rejected", glow: "shadow-[0_0_20px_rgba(255,64,82,0.25)]",  label: "Rejected" },
-  MANUAL_REVIEW: { color: "text-status-manual",   glow: "shadow-[0_0_20px_rgba(251,191,36,0.25)]", label: "Manual Review" },
+const STAGE_LABELS: Record<string, string> = {
+  DocumentVerification:  "Paperwork Check",
+  InformationExtraction: "Data Review",
+  POLICY_ENGINE:         "Coverage Check",
+  FraudDetection:        "Trust & Integrity",
+  FINANCIAL:             "Your Refund Calculation",
+};
+
+const DECISION_STYLES: Record<Decision, { color: string; glow: string; label: string; subtitle: string }> = {
+  APPROVED:      { color: "text-status-approved", glow: "shadow-[0_0_20px_rgba(74,222,128,0.25)]",  label: "Fully Approved",      subtitle: "You're all set." },
+  PARTIAL:       { color: "text-status-manual",   glow: "shadow-[0_0_20px_rgba(251,191,36,0.25)]",  label: "Partially Approved",  subtitle: "We've covered what we can." },
+  REJECTED:      { color: "text-status-rejected", glow: "shadow-[0_0_20px_rgba(255,64,82,0.25)]",   label: "Declined",            subtitle: "We couldn't approve this one." },
+  MANUAL_REVIEW: { color: "text-status-manual",   glow: "shadow-[0_0_20px_rgba(251,191,36,0.25)]",  label: "Routing for Care",    subtitle: "A specialist will take a closer look." },
 };
 
 const RESULT_DOT: Record<string, string> = {
@@ -119,7 +173,7 @@ function TraceAccordion({ stage, entries }: { stage: string; entries: TraceEntry
                 {entry.result === "PASSED" ? "✓" : entry.result === "FAILED" ? "✗" : "⚠"}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold text-plum-muted uppercase tracking-widest leading-none mb-1">{entry.check}</p>
+                <p className="text-[10px] font-bold text-plum-muted uppercase tracking-widest leading-none mb-1">{CHECK_LABELS[entry.check] ?? entry.check}</p>
                 <p className="text-sm text-plum-offwhite/90 leading-snug">{entry.detail}</p>
               </div>
             </div>
@@ -159,7 +213,7 @@ export default function ClaimResult() {
   if (!result) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 px-4 text-center">
-        <p className="text-plum-muted">Claim result not found.</p>
+        <p className="text-plum-muted">We couldn&apos;t find this claim. It may have expired from your session.</p>
         <button onClick={() => router.push("/")} className="text-plum-pink text-sm hover:underline">
           ← Submit a new claim
         </button>
@@ -185,7 +239,7 @@ export default function ClaimResult() {
       {/* Header */}
       <div>
         <h1 className="font-serif text-3xl sm:text-4xl text-plum-offwhite mb-2">
-          AI Operations <em className="text-plum-muted">Workspace</em>
+          Here&apos;s what we <em className="text-plum-muted">found.</em>
         </h1>
         <p className="text-plum-muted text-xs font-mono">{result.claimId}</p>
       </div>
@@ -195,8 +249,9 @@ export default function ClaimResult() {
 
         <div className="flex items-start justify-between border-b border-plum-secondary pb-5 mb-5">
           <div>
-            <p className="text-[10px] sm:text-xs font-bold text-plum-muted uppercase tracking-widest mb-1">Final Decision</p>
-            <h2 className={`font-serif text-4xl sm:text-5xl mt-1 drop-shadow-md ${ds.color}`}>{ds.label.toUpperCase()}</h2>
+            <p className="text-[10px] sm:text-xs font-bold text-plum-muted uppercase tracking-widest mb-1">Decision</p>
+            <h2 className={`font-serif text-4xl sm:text-5xl mt-1 drop-shadow-md ${ds.color}`}>{ds.label}</h2>
+            <p className="text-sm text-plum-muted mt-1.5">{ds.subtitle}</p>
           </div>
           {hasAmount && (
             <div className="text-right">
@@ -211,7 +266,7 @@ export default function ClaimResult() {
         {/* Confidence */}
         <div className="mb-5">
           <div className="flex justify-between items-center mb-1.5">
-            <span className="text-xs text-plum-muted uppercase tracking-wider font-semibold">AI Confidence</span>
+            <span className="text-xs text-plum-muted uppercase tracking-wider font-semibold">How sure are we</span>
             <span className="text-xs text-plum-offwhite font-mono">{(result.systemConfidence * 100).toFixed(0)}%</span>
           </div>
           <div className="h-1.5 w-full bg-plum-main rounded-full overflow-hidden">
@@ -228,7 +283,7 @@ export default function ClaimResult() {
         {/* Rejection Reasons */}
         {result.rejectionReasons.length > 0 && (
           <div className="mb-5 bg-plum-pink/10 border border-plum-pink/30 rounded-md px-4 py-3 flex flex-col gap-1.5">
-            <p className="text-xs font-semibold text-plum-pink uppercase tracking-wider">Reason</p>
+            <p className="text-xs font-semibold text-plum-pink uppercase tracking-wider">A quick note</p>
             {result.rejectionReasons.map((r, i) => (
               <p key={i} className="text-sm text-plum-offwhite/80">{r}</p>
             ))}
@@ -238,14 +293,14 @@ export default function ClaimResult() {
         {/* Degraded components warning */}
         {result.degradedComponents.length > 0 && (
           <div className="mb-5 bg-status-manual/10 border border-status-manual/30 rounded-md px-4 py-3">
-            <p className="text-xs font-semibold text-status-manual uppercase tracking-wider mb-1">Degraded Components</p>
-            <p className="text-sm text-plum-offwhite/70">{result.degradedComponents.join(", ")} — results may be incomplete.</p>
+            <p className="text-xs font-semibold text-status-manual uppercase tracking-wider mb-1">Heads up</p>
+            <p className="text-sm text-plum-offwhite/70">We had a hiccup with {result.degradedComponents.join(" and ")} during this review. Some details may be incomplete. A specialist may follow up.</p>
           </div>
         )}
 
         {/* Trace Accordions */}
         <div className="flex flex-col gap-3">
-          <h3 className="font-serif text-xl sm:text-2xl text-plum-offwhite mb-1">Decision Trace</h3>
+          <h3 className="font-serif text-xl sm:text-2xl text-plum-offwhite mb-1">How we got here</h3>
           {groups.map(({ stage, entries }) => (
             <TraceAccordion key={stage} stage={stage} entries={entries} />
           ))}

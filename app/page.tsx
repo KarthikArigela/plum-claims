@@ -128,7 +128,7 @@ export default function SubmitClaim() {
     setError(null);
 
     if (files.length === 0) {
-      setError("Please upload at least one document.");
+      setError("We need at least one document to get started. Could you upload your prescription or bill?");
       return;
     }
 
@@ -159,7 +159,7 @@ export default function SubmitClaim() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Something went wrong.");
+        throw new Error(data.error || "Something didn't go through. Please try again.");
       }
 
       const result = await res.json();
@@ -169,7 +169,7 @@ export default function SubmitClaim() {
 
       router.push(`/claims/${result.claimId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Submission failed.");
+      setError(err instanceof Error ? err.message : "We have hit a setback. Please try again in a moment.");
       setIsSubmitting(false);
     }
   };
@@ -179,10 +179,10 @@ export default function SubmitClaim() {
 
       <div>
         <h1 className="font-serif text-3xl sm:text-4xl text-plum-offwhite mb-2">
-          Submit a claim, <em className="text-plum-muted">effortlessly.</em>
+          Let&apos;s get your claim <em className="text-plum-muted">sorted.</em>
         </h1>
         <p className="text-plum-muted text-sm sm:text-base leading-relaxed">
-          Upload your medical documents below. Our AI checks them instantly so you get paid faster.
+          Upload your documents and we&apos;ll take it from there. Our AI reviews everything instantly, so your money comes back faster.
         </p>
       </div>
 
@@ -260,8 +260,8 @@ export default function SubmitClaim() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
             </div>
-            <p className="text-sm font-medium text-plum-offwhite mb-1">Tap to upload or drag files here</p>
-            <p className="text-xs text-plum-muted">PDF, JPG, PNG (Max 5MB each)</p>
+            <p className="text-sm font-medium text-plum-offwhite mb-1">Tap to upload, or drag your files here</p>
+            <p className="text-xs text-plum-muted">Prescriptions, bills, lab reports - PDF, JPG, PNG (Max 5MB each)</p>
             <input
               ref={fileInputRef}
               type="file"
@@ -321,7 +321,7 @@ export default function SubmitClaim() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
               </svg>
-              Analysing Documents...
+              Reviewing your documents...
             </>
           ) : (
             <>Submit Claim <span className="text-xl font-light leading-none">→</span></>

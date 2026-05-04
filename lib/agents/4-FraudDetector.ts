@@ -17,14 +17,14 @@ export async function detectFraud(claim: ClaimSubmission): Promise<FraudResult> 
       stage: 'FraudDetection',
       check: 'HighValueCheck',
       result: 'WARNING',
-      detail: `Claimed ₹${claim.claimedAmount} > threshold ₹${thresholds.high_value_claim_threshold}. Adding fraud signal.`
+      detail: `This claim is above our ₹${thresholds.high_value_claim_threshold.toLocaleString('en-IN')} threshold — we'll have a specialist take a closer look.`
     });
   } else {
     trace.push({
       stage: 'FraudDetection',
       check: 'HighValueCheck',
       result: 'PASSED',
-      detail: `Claimed ₹${claim.claimedAmount} within high-value threshold.`
+      detail: `Claim amount is within normal range. Nothing unusual here.`
     });
   }
 
@@ -36,7 +36,7 @@ export async function detectFraud(claim: ClaimSubmission): Promise<FraudResult> 
       stage: 'FraudDetection',
       check: 'AutoManualReviewCheck',
       result: 'WARNING',
-      detail: `Claimed ₹${claim.claimedAmount} exceeds hard limit ₹${thresholds.auto_manual_review_above}. Forcing manual review.`
+      detail: `Claims above ₹${thresholds.auto_manual_review_above.toLocaleString('en-IN')} are always reviewed by a person — we want to make sure everything's right for you.`
     });
   }
 
@@ -49,14 +49,14 @@ export async function detectFraud(claim: ClaimSubmission): Promise<FraudResult> 
       stage: 'FraudDetection',
       check: 'SameDayClaimsCheck',
       result: 'WARNING',
-      detail: `Member already has ${sameDayClaims.length} claim(s) on ${claim.treatmentDate}. Limit is ${thresholds.same_day_claims_limit}.`
+      detail: `We noticed multiple claims for the same date (${claim.treatmentDate}). We'll have someone review this to make sure everything's in order.`
     });
   } else {
     trace.push({
       stage: 'FraudDetection',
       check: 'SameDayClaimsCheck',
       result: 'PASSED',
-      detail: `${sameDayClaims.length} prior claim(s) on ${claim.treatmentDate}. Within limit.`
+      detail: `No unusual activity on ${claim.treatmentDate}. Everything looks honest and in order.`
     });
   }
 
@@ -70,14 +70,14 @@ export async function detectFraud(claim: ClaimSubmission): Promise<FraudResult> 
       stage: 'FraudDetection',
       check: 'MonthlyClaimsCheck',
       result: 'WARNING',
-      detail: `Member has ${monthClaims.length} claim(s) this month. Monthly limit is ${thresholds.monthly_claims_limit}.`
+      detail: `There have been ${monthClaims.length + 1} claims this month, which is above our usual threshold. We'll have a specialist review this one.`
     });
   } else {
     trace.push({
       stage: 'FraudDetection',
       check: 'MonthlyClaimsCheck',
       result: 'PASSED',
-      detail: `${monthClaims.length} claim(s) this month. Within limit.`
+      detail: `Claim frequency this month looks normal — no unusual patterns found.`
     });
   }
 
@@ -88,7 +88,7 @@ export async function detectFraud(claim: ClaimSubmission): Promise<FraudResult> 
       stage: 'FraudDetection',
       check: 'FraudRulesCheck',
       result: 'WARNING',
-      detail: `Hard fraud rule breached. Forcing manual review.`
+      detail: `We've flagged this for a human review. Someone from our team will be in touch — this isn't a rejection, just an extra check.`
     });
   }
 

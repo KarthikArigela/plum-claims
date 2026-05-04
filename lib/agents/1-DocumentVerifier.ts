@@ -106,7 +106,7 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
       stage: 'DocumentVerification',
       check: 'RequirementsLookup',
       result: 'WARNING',
-      detail: `No document requirements found for category ${claim.claimCategory}. Proceeding without type check.`
+      detail: `We don't have specific document requirements on file for ${claim.claimCategory} claims. Proceeding with what you've provided.`
     })
     return { passed: true, errors: [], trace }
   }
@@ -130,13 +130,13 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
       documentId: doc.id,
       documentType: 'UNKNOWN',
       expectedType: doc.type,
-      message: `Document ${doc.fileName || doc.id} could not be read — no file data received. Please re-upload the file.`
+      message: `We couldn't read "${doc.fileName || doc.id}". It looks like the file didn't come through. Could you try uploading it again?`
     })
     trace.push({
       stage: 'DocumentVerification',
       check: 'FileDataCheck',
       result: 'FAILED',
-      detail: `Document ${doc.id} has no base64Data — skipping LLM analysis.`
+      detail: `"${doc.fileName || doc.id}" arrived without any file data. We weren't able to open it.`
     })
   }
 
@@ -155,11 +155,12 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
 
     if (result.status === 'fulfilled') {
       analyses.push(result.value)
+      const docLabel = result.value.detected_type.replace(/_/g, ' ').toLowerCase()
       trace.push({
         stage: 'DocumentVerification',
         check: 'DocumentClassification',
         result: 'INFO',
-        detail: `Document ${doc.id}: Detected as ${result.value.detected_type} (confidence: ${result.value.confidence.toFixed(2)}). Member declared: ${doc.type}.`
+        detail: `We've identified "${doc.fileName || doc.id}" as a ${docLabel}.`
       })
     } else {
       // LLM failed for this doc — treat as unverifiable
@@ -167,13 +168,13 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
         documentId: doc.id,
         documentType: 'UNKNOWN',
         expectedType: doc.type,
-        message: `Document ${doc.fileName || doc.id} could not be verified — please re-upload a clearer copy.`
+        message: `We're having trouble reading "${doc.fileName || doc.id}". Could you re-upload a clearer copy?`
       })
       trace.push({
         stage: 'DocumentVerification',
         check: 'DocumentClassification',
         result: 'FAILED',
-        detail: `LLM analysis failed for document ${doc.id}: ${String(result.reason)}`
+        detail: `We weren't able to identify "${doc.fileName || doc.id}". Please try a sharper photo with good lighting.`
       })
     }
   }
@@ -185,12 +186,14 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
     if (!detectedTypes.includes(required)) {
       const wrongDoc = analyses.find(a => !requirements.required.includes(a.detected_type))
 
+      const categoryLabel = claim.claimCategory.toLowerCase().replace(/_/g, ' ')
+      const requiredLabel = required.replace(/_/g, ' ').toLowerCase()
+      const wrongDocLabel = wrongDoc?.detected_type.replace(/_/g, ' ').toLowerCase()
       const message = wrongDoc
-        ? `You uploaded a ${wrongDoc.detected_type} where a ${required} is required. ` +
-          `For ${claim.claimCategory.toLowerCase()} claims, please upload a ${required}. ` +
-          `Required documents: ${requirements.required.join(', ')}.`
-        : `Missing required document: ${required}. ` +
-          `${claim.claimCategory} claims require: ${requirements.required.join(', ')}.`
+        ? `We found a ${wrongDocLabel} in your upload, but a ${requiredLabel} is needed for ${categoryLabel} claims. ` +
+          `Could you swap it out? You'll need: ${requirements.required.map(r => r.replace(/_/g, ' ').toLowerCase()).join(' and ')}.`
+        : `We couldn't find a ${requiredLabel} in your upload. ` +
+          `${categoryLabel} claims require: ${requirements.required.map(r => r.replace(/_/g, ' ').toLowerCase()).join(' and ')}.`
 
       errors.push({
         documentId: wrongDoc?.documentId || 'missing',
@@ -209,7 +212,7 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
         stage: 'DocumentVerification',
         check: 'RequiredDocumentCheck',
         result: 'PASSED',
-        detail: `Required document ${required} found.`
+        detail: `Great. We found your ${required.replace(/_/g, ' ').toLowerCase()}.`
       })
     }
   }
@@ -221,8 +224,9 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
         ? analysis.readability_issues.join(', ')
         : 'unclear image'
 
-      const message = `Document ${analysis.documentId} is not readable (${issues}). ` +
-        `Please re-upload a clearer photo — ensure good lighting, all edges visible, and no shadows covering text.`
+      const readableIssues = issues.replace(/_/g, ' ')
+      const message = `We're having a bit of trouble reading this document (${readableIssues}). ` +
+        `A clearer photo would help. Good lighting, all four edges in frame, and no shadows over the text.`
 
       errors.push({
         documentId: analysis.documentId,
@@ -241,7 +245,7 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
         stage: 'DocumentVerification',
         check: 'ReadabilityCheck',
         result: 'PASSED',
-        detail: `Document ${analysis.documentId} (${analysis.detected_type}) is readable.`
+        detail: `Your ${analysis.detected_type.replace(/_/g, ' ').toLowerCase()} is clear and easy to read.`
       })
     }
   }
@@ -265,10 +269,9 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
         .map(d => `${d.type}: "${d.name}"`)
         .join(', ')
 
-      const message = `Patient names do not match across documents (${nameList}). ` +
-        `All documents must belong to the same patient. ` +
-        `If these are the same person, please re-upload documents with consistent name spelling. ` +
-        `Otherwise re-upload documents for the correct patient.`
+      const message = `The names on your documents don't quite match. We found ${nameList}. ` +
+        `All documents need to be for the same person.` +
+        `If it's a spelling variation, please re-upload with consistent name spelling. Otherwise, check you've sent the right documents.`
 
       errors.push({
         documentId: 'cross_document',
@@ -287,7 +290,7 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
         stage: 'DocumentVerification',
         check: 'CrossDocumentConsistency',
         result: 'PASSED',
-        detail: `Patient name consistent across all documents: "${namedDocs[0].patient_name}".`
+        detail: `All documents are for the same patient - "${namedDocs[0].patient_name}". Looks good.`
       })
     }
   }

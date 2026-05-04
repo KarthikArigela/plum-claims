@@ -53,10 +53,10 @@ export class PolicyEngine {
     let primaryMember: PolicyMember | undefined;
 
     if (!member) {
-      addCheck('MEMBER_NOT_FOUND', false, `Member ${claim.memberId} not found in policy.`);
+      addCheck('MEMBER_NOT_FOUND', false, `We couldn't find member "${claim.memberId}" on this policy. Please double-check your member ID.`);
       return { checks, approvedAmount, decision, rejectionReasons, trace };
     } else {
-      addCheck('Member Exists', true, `Member ${member.name} found.`);
+      addCheck('Member Exists', true, `We found you - ${member.name} is an active member on this policy.`);
       if (member.relationship !== 'SELF') {
         primaryMember = policy.members.find(m => m.member_id === member?.primary_member_id);
       } else {
@@ -70,32 +70,33 @@ export class PolicyEngine {
     const pStart = parseDate(policy.policy_holder.policy_start_date);
     const pEnd = parseDate(policy.policy_holder.policy_end_date);
     if (treatmentDate >= pStart && treatmentDate <= pEnd) {
-      addCheck('Policy Active', true, `Treatment date is within policy period.`);
+      addCheck('Policy Active', true, `Your policy was active on the treatment date. You're covered.`);
     } else {
-      addCheck('POLICY_INACTIVE', false, `Treatment date ${claim.treatmentDate} is outside active policy period.`);
+      addCheck('POLICY_INACTIVE', false, `Unfortunately, your treatment on ${claim.treatmentDate} falls outside your active policy period (${policy.policy_holder.policy_start_date} to ${policy.policy_holder.policy_end_date}).`);
     }
 
     // 3. Submission within 30-day deadline
     const daysSinceTreatment = diffDays(submissionDate, treatmentDate);
     if (daysSinceTreatment <= policy.submission_rules.deadline_days_from_treatment) {
-      addCheck('Submission Deadline', true, `Submitted within ${policy.submission_rules.deadline_days_from_treatment} days.`);
+      addCheck('Submission Deadline', true, `Claim submitted within the ${policy.submission_rules.deadline_days_from_treatment}-day window - all good.`);
     } else {
-      addCheck('SUBMISSION_LATE', false, `Submission is ${daysSinceTreatment} days late.`);
+      addCheck('SUBMISSION_LATE', false, `This claim was submitted ${daysSinceTreatment} days after treatment. Claims need to come in within ${policy.submission_rules.deadline_days_from_treatment} days.`);
     }
 
     // 4. Minimum claim amount (₹500)
     if (claim.claimedAmount >= policy.submission_rules.minimum_claim_amount) {
-      addCheck('Minimum Amount', true, `Claimed amount ₹${claim.claimedAmount} meets minimum ₹${policy.submission_rules.minimum_claim_amount}.`);
+      addCheck('Minimum Amount', true, `Claim amount ₹${claim.claimedAmount.toLocaleString('en-IN')} meets our minimum threshold.`);
     } else {
-      addCheck('MINIMUM_AMOUNT_NOT_MET', false, `Claimed amount ₹${claim.claimedAmount} is below minimum ₹${policy.submission_rules.minimum_claim_amount}.`);
+      addCheck('MINIMUM_AMOUNT_NOT_MET', false, `The claimed amount of ₹${claim.claimedAmount} is below our minimum of ₹${policy.submission_rules.minimum_claim_amount}. We can only process claims above this threshold.`);
     }
 
     // 5. Initial 30-day waiting period from join date
     const daysSinceJoin = diffDays(treatmentDate, joinDate);
     if (daysSinceJoin >= policy.waiting_periods.initial_waiting_period_days) {
-      addCheck('Initial Waiting Period', true, `Member joined ${daysSinceJoin} days ago, passes initial 30 days.`);
+      addCheck('Initial Waiting Period', true, `Great. You've completed the initial ${policy.waiting_periods.initial_waiting_period_days}-day waiting period, so this treatment is fully covered.`);
     } else {
-      addCheck('WAITING_PERIOD', false, `Treatment within initial ${policy.waiting_periods.initial_waiting_period_days} days of joining.`);
+      const remaining = policy.waiting_periods.initial_waiting_period_days - daysSinceJoin;
+      addCheck('WAITING_PERIOD', false, `This treatment happened during the initial ${policy.waiting_periods.initial_waiting_period_days}-day waiting period. Your policy will cover treatments from ${remaining} days from now.`);
     }
 
     // 6. Condition-specific waiting period
@@ -107,22 +108,23 @@ export class PolicyEngine {
           if (daysSinceJoin < waitDays) {
             specificWaitingFailed = true;
             const eligibleDate = new Date(joinDate.getTime() + waitDays * 24 * 3600 * 1000).toISOString().split('T')[0];
-            addCheck('WAITING_PERIOD', false, `Condition ${condition} requires ${waitDays} days waiting period. Eligible after ${eligibleDate}.`);
+            addCheck('WAITING_PERIOD', false, `${condition.replace(/_/g, ' ')} has a ${waitDays}-day waiting period under your plan. You'll be eligible to claim for this from ${eligibleDate}.`);
           }
         }
       }
     }
     if (!specificWaitingFailed) {
-      addCheck('Condition Waiting Period', true, `No specific waiting period violations found.`);
+      addCheck('Condition Waiting Period', true, `No waiting period restrictions apply to this condition - you're clear.`);
     }
 
     // 7. Category is covered
     const categoryKey = claim.claimCategory.toLowerCase();
     const catRules = policy.opd_categories[categoryKey];
+    const catDisplayName = claim.claimCategory.toLowerCase().replace(/_/g, ' ')
     if (catRules && catRules.covered) {
-      addCheck('Category Covered', true, `Category ${claim.claimCategory} is covered.`);
+      addCheck('Category Covered', true, `${catDisplayName} claims are covered under your plan.`);
     } else {
-      addCheck('CATEGORY_NOT_COVERED', false, `Category ${claim.claimCategory} is not covered.`);
+      addCheck('CATEGORY_NOT_COVERED', false, `Unfortunately, ${catDisplayName} claims aren't covered under your current plan.`);
     }
 
     // 8. Diagnosis/treatment exclusions
@@ -131,7 +133,7 @@ export class PolicyEngine {
       for (const excl of policy.exclusions.conditions) {
         if (this.isExclusionMatch(diagnosis, excl)) {
           hasExclusions = true;
-          addCheck('EXCLUDED_CONDITION', false, `Diagnosis matches excluded condition: ${excl}`);
+          addCheck('EXCLUDED_CONDITION', false, `"${diagnosis}" matches an excluded condition under your plan: ${excl}. This isn't something we're able to cover.`);
         }
       }
     }
@@ -150,10 +152,10 @@ export class PolicyEngine {
     }
     
     if (partialApprovalDetails.rejected.length > 0) {
-      addCheck('Exclusions (Partial)', true, `Found excluded line items, processing as partial approval.`, false);
+      addCheck('Exclusions (Partial)', true, `Some items in your claim aren't covered. We'll approve what we can.`, false);
       if (decision === 'APPROVED') decision = 'PARTIAL';
     } else if (!hasExclusions) {
-      addCheck('Diagnosis Exclusions', true, `No exclusions found.`);
+      addCheck('Diagnosis Exclusions', true, `Nothing in your claim is on the exclusions list - all clear.`);
     }
 
     // 9. Pre-authorization required and obtained
@@ -161,10 +163,10 @@ export class PolicyEngine {
     if (catRules?.requires_pre_auth) {
       if (!claim.preAuthObtained) {
         preAuthMissing = true;
-        addCheck('PRE_AUTH_MISSING', false, `Pre-authorization required for ${claim.claimCategory} but not obtained.`);
+        addCheck('PRE_AUTH_MISSING', false, `${catDisplayName} claims need pre-authorisation before treatment. Please resubmit with your pre-auth approval.`);
       }
     }
-    
+
     // Check item-level pre-auth
     if (catRules?.high_value_tests_requiring_pre_auth && catRules.high_value_tests_requiring_pre_auth.length > 0) {
       const threshold = catRules.pre_auth_threshold || Infinity;
@@ -172,39 +174,39 @@ export class PolicyEngine {
         if (item.amount > threshold && this.lowerDiagMatch(item.description, catRules.high_value_tests_requiring_pre_auth)) {
           if (!claim.preAuthObtained) {
             preAuthMissing = true;
-            addCheck('PRE_AUTH_MISSING', false, `Pre-authorization required for ${item.description} (> ₹${threshold}) but not obtained. Please resubmit with pre-auth.`);
+            addCheck('PRE_AUTH_MISSING', false, `${item.description} costs more than ₹${threshold.toLocaleString('en-IN')}, which requires pre-authorisation. Please resubmit with your pre-auth approval.`);
           }
         }
       }
     }
     if (!preAuthMissing) {
-      addCheck('Pre-authorization', true, `Pre-authorization requirements met or not applicable.`);
+      addCheck('Pre-authorization', true, `Pre-authorisation isn't required here, or you've already sorted it. We're good to go.`);
     }
 
     // 10. Annual OPD limit (₹50,000)
     const ytd = claim.ytdClaimsAmount || 0;
     const remainingAnnual = policy.coverage.annual_opd_limit - ytd;
     if (remainingAnnual > 0) {
-      addCheck('Annual OPD Limit', true, `Remaining annual limit: ₹${remainingAnnual}.`);
+      addCheck('Annual OPD Limit', true, `You have ₹${remainingAnnual.toLocaleString('en-IN')} remaining in your annual limit — plenty of headroom.`);
     } else {
-      addCheck('ANNUAL_LIMIT_EXCEEDED', false, `Annual OPD limit exceeded.`);
+      addCheck('ANNUAL_LIMIT_EXCEEDED', false, `Your annual OPD limit of ₹${policy.coverage.annual_opd_limit.toLocaleString('en-IN')} has been used up for this year. This claim can't be approved until your limit renews.`);
     }
 
     // 11. Category sub-limit check
     const catLimit = catRules?.sub_limit || Infinity;
     if (claim.claimedAmount <= catLimit) {
-      addCheck('Category Sub-limit', true, `Claimed amount within category sub-limit.`);
+      addCheck('Category Sub-limit', true, `Your claim is within the ${catDisplayName} sub-limit.`);
     } else {
-      addCheck('Category Sub-limit', false, `Claimed amount exceeds category sub-limit of ₹${catLimit}.`, false);
+      addCheck('Category Sub-limit', false, `Your claim of ₹${claim.claimedAmount.toLocaleString('en-IN')} is above the ${catDisplayName} sub-limit of ₹${catLimit.toLocaleString('en-IN')}. We'll approve up to the limit.`, false);
       // We emit a WARNING trace instead of FAILED for non-critical
       trace[trace.length - 1].result = 'WARNING';
     }
 
     // 12. Per-claim limit (₹5,000)
     if (claim.claimedAmount <= policy.coverage.per_claim_limit) {
-      addCheck('Per-claim Limit', true, `Claimed amount within per-claim limit (₹${policy.coverage.per_claim_limit}).`);
+      addCheck('Per-claim Limit', true, `Claim amount is within the per-claim limit of ₹${policy.coverage.per_claim_limit.toLocaleString('en-IN')}.`);
     } else {
-      addCheck('PER_CLAIM_EXCEEDED', false, `Claimed amount ₹${claim.claimedAmount} exceeds the per-claim limit of ₹${policy.coverage.per_claim_limit}.`);
+      addCheck('PER_CLAIM_EXCEEDED', false, `Your claim of ₹${claim.claimedAmount.toLocaleString('en-IN')} is above the per-claim limit of ₹${policy.coverage.per_claim_limit.toLocaleString('en-IN')}. We can approve up to ₹${policy.coverage.per_claim_limit.toLocaleString('en-IN')}.`);
     }
 
     // 13. Financial Calculation
@@ -236,12 +238,12 @@ export class PolicyEngine {
           if (!provider) {
             // Cannot safely determine network status. Abort and flag for manual review.
             decision = 'MANUAL_REVIEW';
-            rejectionReasons.push('UNVERIFIABLE_PROVIDER_NETWORK_STATUS');
-            trace.push({ 
-              stage: 'FINANCIAL', 
-              check: 'Network Discount', 
-              result: 'FAILED', 
-              detail: `Provider name missing for item: "${itemDesc}". Cannot safely determine network discount eligibility. Flagging for manual review.` 
+            rejectionReasons.push("We couldn't confirm the hospital network for one of your items. A specialist will review this for you.");
+            trace.push({
+              stage: 'FINANCIAL',
+              check: 'Network Discount',
+              result: 'FAILED',
+              detail: `We couldn't confirm which hospital "${itemDesc}" is from - so we can't safely apply a network discount. A specialist will take a look.`
             });
             return { checks, approvedAmount: 0, decision, rejectionReasons, trace, partialApprovalDetails };
           }
@@ -270,7 +272,7 @@ export class PolicyEngine {
       
       if (networkDiscount > 0) {
         calculatedAmount -= networkDiscount;
-        trace.push({ stage: 'FINANCIAL', check: 'Network Discount', result: 'INFO', detail: `Applied ${catRules.network_discount_percent}% network discount: -₹${networkDiscount}` });
+        trace.push({ stage: 'FINANCIAL', check: 'Network Discount', result: 'INFO', detail: `Your hospital is in our network. We've applied a ${catRules.network_discount_percent}% discount (−₹${networkDiscount.toLocaleString('en-IN')}).` });
       }
     }
 
@@ -278,12 +280,12 @@ export class PolicyEngine {
     if (catRules?.copay_percent) {
       copay = (calculatedAmount * catRules.copay_percent) / 100;
       calculatedAmount -= copay;
-      trace.push({ stage: 'FINANCIAL', check: 'Copay', result: 'INFO', detail: `Applied ${catRules.copay_percent}% co-pay: -₹${copay}` });
+      trace.push({ stage: 'FINANCIAL', check: 'Copay', result: 'INFO', detail: `Your plan includes a ${catRules.copay_percent}% co-pay. Your share is ₹${copay.toLocaleString('en-IN')}.` });
     }
 
     approvedAmount = Math.min(calculatedAmount, policy.coverage.per_claim_limit, remainingAnnual);
 
-    trace.push({ stage: 'FINANCIAL', check: 'Final Approval', result: 'INFO', detail: `Calculated amount: ₹${approvedAmount}` });
+    trace.push({ stage: 'FINANCIAL', check: 'Final Approval', result: 'INFO', detail: `Everything checks out. Your refund is ₹${approvedAmount.toLocaleString('en-IN')}.` });
 
     return { checks, approvedAmount, decision, rejectionReasons, trace, partialApprovalDetails };
   }

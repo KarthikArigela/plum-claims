@@ -293,15 +293,16 @@ export async function extractInformation(
       extracted.push(result.value)
       confidenceSum += result.value.extractionConfidence
 
-      const unreadable = result.value.unreadableFields.length > 0
-        ? `Unreadable fields: ${result.value.unreadableFields.join(', ')}`
-        : 'All fields readable'
+      const docLabel = doc.type.replace(/_/g, ' ').toLowerCase()
+      const partialFields = result.value.unreadableFields.length > 0
+        ? `Few fields were hard to make out: ${result.value.unreadableFields.join(', ')}.`
+        : ''
 
       trace.push({
         stage: 'InformationExtraction',
         check: `Extract_${doc.type}`,
         result: result.value.extractionConfidence >= 0.6 ? 'PASSED' : 'WARNING',
-        detail: `Extracted ${doc.type} (confidence: ${result.value.extractionConfidence.toFixed(2)}). ${unreadable}.`
+        detail: `Our AI neatly organised the details from your ${docLabel}.${partialFields}`
       })
 
       // Log key extracted fields for trace visibility
@@ -310,7 +311,7 @@ export async function extractInformation(
           stage: 'InformationExtraction',
           check: 'ProviderExtracted',
           result: 'INFO',
-          detail: `Provider: "${result.value.providerName}" (used for network discount check).`
+          detail: `Treatment was at "${result.value.providerName}".`
         })
       }
       if (result.value.diagnosis) {
@@ -318,7 +319,7 @@ export async function extractInformation(
           stage: 'InformationExtraction',
           check: 'DiagnosisExtracted',
           result: 'INFO',
-          detail: `Diagnosis: "${result.value.diagnosis}".`
+          detail: `It looks like treatment was for ${result.value.diagnosis}.`
         })
       }
     } else {
@@ -332,11 +333,12 @@ export async function extractInformation(
       extracted.push(fallback)
       confidenceSum += 0.1
 
+      const docLabel = doc.type.replace(/_/g, ' ').toLowerCase()
       trace.push({
         stage: 'InformationExtraction',
         check: `Extract_${doc.type}`,
         result: 'FAILED',
-        detail: `Extraction failed for ${doc.type} (${doc.id}): ${result.reason}. Fallback used — confidence set to 0.1.`
+        detail: `We weren't able to pull details from your ${docLabel}. We'll continue with the information we have.`
       })
     }
   }
