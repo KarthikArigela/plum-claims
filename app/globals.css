@@ -1,26 +1,82 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* Exact Plum Brand Colors */
+  --color-plum-main: #2b0b21;      
+  --color-plum-secondary: #5e2c4d; 
+  --color-plum-offwhite: #fff4eb;  
+  --color-plum-pink: #ff4052;      
+
+  /* Muted text (Calculated manually to avoid Tailwind v4 parser crash) */
+  --color-plum-muted: #b892a7; 
+  
+  /* Status Colors */
+  --color-status-approved: #4ade80; 
+  --color-status-manual: #fbbf24;   
+  --color-status-rejected: #ff4052;
+
+  /* Typography */
+  --font-serif: var(--font-alpina);
+  --font-sans: var(--font-passenger);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.02em;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Force theme globally to prevent dark/light mode switching */
+html, body {
+  background-color: var(--color-plum-main) !important;
+  color: var(--color-plum-offwhite) !important;
+  font-family: var(--font-passenger), sans-serif; /* Default to Passenger Sans */
 }
+
+h1, h2, h3, h4, h5, h6, .font-serif {
+  font-family: var(--font-alpina), serif !important; /* Force GT Alpina for headings */
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield; /* Firefox */
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+input[type="date"] {
+  color-scheme: dark; /* Forces the browser popup to dark mode */
+}
+
+/* Customizing the calendar icon visibility */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23ff4052" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>');
+  cursor: pointer;
+  padding: 3px;
+}
+
+/* Ensure the text doesn't look white-on-white */
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+  color: #fff4eb;
+}
+
+/* Mobile-friendly subtle scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-plum-secondary); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-plum-muted); }

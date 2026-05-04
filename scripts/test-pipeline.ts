@@ -2,6 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import { processClaimPipeline } from '../lib/pipeline';
 import { ClaimSubmission } from '../lib/types/claim.types';
+import { loadEnvConfig } from '@next/env'
+
+// Load environment variables from .env.local
+loadEnvConfig(process.cwd())
 
 async function main() {
   const testCasesPath = path.join(process.cwd(), 'data', 'test_cases.json');

@@ -1,4 +1,9 @@
 // Quick test: send a real image file to the API route and check the response
+import { loadEnvConfig } from '@next/env'
+
+// Load environment variables from .env.local
+loadEnvConfig(process.cwd())
+
 const fs = require('fs');
 const path = require('path');
 

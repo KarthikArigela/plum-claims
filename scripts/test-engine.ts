@@ -3,6 +3,10 @@ import path from 'path';
 import { PolicyEngine } from '../lib/agents/3-PolicyEngine';
 import { loadPolicy } from '../lib/policy/policyLoader';
 import { ClaimSubmission, ExtractionResult, DocumentType } from '../lib/types/claim.types';
+import { loadEnvConfig } from '@next/env'
+
+// Load environment variables from .env.local
+loadEnvConfig(process.cwd())
 
 const testCasesPath = path.join(process.cwd(), 'data', 'test_cases.json');
 const testCasesData = JSON.parse(fs.readFileSync(testCasesPath, 'utf-8'));
