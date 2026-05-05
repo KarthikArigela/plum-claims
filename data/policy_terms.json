@@ -1,12 +1,12 @@
 {
-  "policy_id": "PLUM_GHI_2024",
+  "policy_id": "PLUM_GHI_2026",
   "policy_name": "Group Health Insurance — Standard Plan",
   "insurer": "ICICI Lombard General Insurance",
   "policy_holder": {
     "company_name": "TechCorp Solutions Pvt Ltd",
     "employee_count": 500,
-    "policy_start_date": "2024-04-01",
-    "policy_end_date": "2025-03-31",
+    "policy_start_date": "2026-04-15",
+    "policy_end_date": "2027-04-14",
     "renewal_status": "ACTIVE"
   },
   "coverage": {
@@ -16,7 +16,12 @@
     "family_floater": {
       "enabled": true,
       "combined_limit": 150000,
-      "covered_relationships": ["SELF", "SPOUSE", "CHILDREN", "PARENTS"]
+      "covered_relationships": [
+        "SELF",
+        "SPOUSE",
+        "CHILDREN",
+        "PARENTS"
+      ]
     }
   },
   "opd_categories": {
@@ -35,7 +40,11 @@
       "requires_prescription": true,
       "requires_pre_auth": false,
       "pre_auth_threshold": 10000,
-      "high_value_tests_requiring_pre_auth": ["MRI", "CT Scan", "PET Scan"],
+      "high_value_tests_requiring_pre_auth": [
+        "MRI",
+        "CT Scan",
+        "PET Scan"
+      ],
       "covered": true
     },
     "pharmacy": {
@@ -74,8 +83,17 @@
       "copay_percent": 0,
       "requires_prescription": true,
       "covered": true,
-      "covered_items": ["Glasses", "Contact Lenses", "Eye Examination", "Cataract Surgery"],
-      "excluded_items": ["LASIK Surgery", "Cosmetic Eye Surgery", "Refractive Surgery"]
+      "covered_items": [
+        "Glasses",
+        "Contact Lenses",
+        "Eye Examination",
+        "Cataract Surgery"
+      ],
+      "excluded_items": [
+        "LASIK Surgery",
+        "Cosmetic Eye Surgery",
+        "Refractive Surgery"
+      ]
     },
     "alternative_medicine": {
       "sub_limit": 8000,
@@ -83,7 +101,13 @@
       "requires_prescription": true,
       "requires_registered_practitioner": true,
       "max_sessions_per_year": 20,
-      "covered_systems": ["Ayurveda", "Homeopathy", "Unani", "Siddha", "Naturopathy"],
+      "covered_systems": [
+        "Ayurveda",
+        "Homeopathy",
+        "Unani",
+        "Siddha",
+        "Naturopathy"
+      ],
       "covered": true
     }
   },
@@ -154,27 +178,53 @@
   },
   "document_requirements": {
     "CONSULTATION": {
-      "required": ["PRESCRIPTION", "HOSPITAL_BILL"],
-      "optional": ["LAB_REPORT", "DIAGNOSTIC_REPORT"]
+      "required": [
+        "PRESCRIPTION",
+        "HOSPITAL_BILL"
+      ],
+      "optional": [
+        "LAB_REPORT",
+        "DIAGNOSTIC_REPORT"
+      ]
     },
     "DIAGNOSTIC": {
-      "required": ["PRESCRIPTION", "LAB_REPORT", "HOSPITAL_BILL"],
-      "optional": ["DISCHARGE_SUMMARY"]
+      "required": [
+        "PRESCRIPTION",
+        "LAB_REPORT",
+        "HOSPITAL_BILL"
+      ],
+      "optional": [
+        "DISCHARGE_SUMMARY"
+      ]
     },
     "PHARMACY": {
-      "required": ["PRESCRIPTION", "PHARMACY_BILL"],
+      "required": [
+        "PRESCRIPTION",
+        "PHARMACY_BILL"
+      ],
       "optional": []
     },
     "DENTAL": {
-      "required": ["HOSPITAL_BILL"],
-      "optional": ["PRESCRIPTION", "DENTAL_REPORT"]
+      "required": [
+        "HOSPITAL_BILL"
+      ],
+      "optional": [
+        "PRESCRIPTION",
+        "DENTAL_REPORT"
+      ]
     },
     "VISION": {
-      "required": ["PRESCRIPTION", "HOSPITAL_BILL"],
+      "required": [
+        "PRESCRIPTION",
+        "HOSPITAL_BILL"
+      ],
       "optional": []
     },
     "ALTERNATIVE_MEDICINE": {
-      "required": ["PRESCRIPTION", "HOSPITAL_BILL"],
+      "required": [
+        "PRESCRIPTION",
+        "HOSPITAL_BILL"
+      ],
       "optional": []
     }
   },
@@ -192,8 +242,11 @@
       "date_of_birth": "1985-03-15",
       "gender": "M",
       "relationship": "SELF",
-      "join_date": "2024-04-01",
-      "dependents": ["DEP001", "DEP002"]
+      "join_date": "2026-04-01",
+      "dependents": [
+        "DEP001",
+        "DEP002"
+      ]
     },
     {
       "member_id": "EMP002",
@@ -201,7 +254,7 @@
       "date_of_birth": "1990-07-22",
       "gender": "F",
       "relationship": "SELF",
-      "join_date": "2024-04-01",
+      "join_date": "2026-04-01",
       "dependents": []
     },
     {
@@ -210,8 +263,10 @@
       "date_of_birth": "1988-11-05",
       "gender": "M",
       "relationship": "SELF",
-      "join_date": "2024-04-01",
-      "dependents": ["DEP003"]
+      "join_date": "2026-04-01",
+      "dependents": [
+        "DEP003"
+      ]
     },
     {
       "member_id": "EMP004",
@@ -219,7 +274,7 @@
       "date_of_birth": "1992-02-28",
       "gender": "F",
       "relationship": "SELF",
-      "join_date": "2024-04-01",
+      "join_date": "2026-04-01",
       "dependents": []
     },
     {
@@ -228,7 +283,7 @@
       "date_of_birth": "1979-09-10",
       "gender": "M",
       "relationship": "SELF",
-      "join_date": "2024-09-01",
+      "join_date": "2026-05-01",
       "dependents": []
     },
     {
@@ -237,7 +292,7 @@
       "date_of_birth": "1983-06-18",
       "gender": "F",
       "relationship": "SELF",
-      "join_date": "2024-04-01",
+      "join_date": "2026-04-01",
       "dependents": []
     },
     {
@@ -246,8 +301,11 @@
       "date_of_birth": "1975-12-30",
       "gender": "M",
       "relationship": "SELF",
-      "join_date": "2024-04-01",
-      "dependents": ["DEP004", "DEP005"]
+      "join_date": "2026-04-01",
+      "dependents": [
+        "DEP004",
+        "DEP005"
+      ]
     },
     {
       "member_id": "EMP008",
@@ -255,7 +313,7 @@
       "date_of_birth": "1987-04-14",
       "gender": "M",
       "relationship": "SELF",
-      "join_date": "2024-04-01",
+      "join_date": "2026-04-01",
       "dependents": []
     },
     {
@@ -264,7 +322,7 @@
       "date_of_birth": "1993-08-25",
       "gender": "F",
       "relationship": "SELF",
-      "join_date": "2024-04-01",
+      "join_date": "2026-04-01",
       "dependents": []
     },
     {
@@ -273,8 +331,10 @@
       "date_of_birth": "1980-01-07",
       "gender": "M",
       "relationship": "SELF",
-      "join_date": "2024-04-01",
-      "dependents": ["DEP006"]
+      "join_date": "2026-04-01",
+      "dependents": [
+        "DEP006"
+      ]
     },
     {
       "member_id": "DEP001",

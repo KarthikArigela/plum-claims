@@ -1,6 +1,7 @@
 import { ClaimSubmission, VerificationResult, TraceEntry, UploadedDocument } from '../types/claim.types'
 import { loadPolicy } from '../policy/policyLoader'
 import { openai, VISION_MODEL } from '../openai'
+import { DocumentVerifierTraces } from '../traces/traceMessages'
 
 interface DocumentAnalysis {
   detected_type: string
@@ -54,8 +55,9 @@ Notes:
 - patient_name should be the name as written — do not correct spelling
 - confidence reflects your certainty in the detected_type classification
 - If the document is a photo of a handwritten prescription, detected_type is PRESCRIPTION
-- If it is a hospital invoice, receipt, bill, OP-slip, or consultation receipt with a fee, detected_type is HOSPITAL_BILL
-- If it is a pharmacy/medicine bill or drug invoice, detected_type is PHARMACY_BILL
+- If it is a hospital invoice, receipt, bill, OP-slip, or consultation receipt with a fee/total amount, detected_type is HOSPITAL_BILL (even if it's from a dental or vision clinic)
+- If it is a diagnostic report (lab results, X-ray report, dental procedure summary) WITHOUT pricing/fee information, detected_type is the specific report type (e.g., DENTAL_REPORT, LAB_REPORT)
+- If the document contains any currency symbols (₹), "Amount", "Total", or "Invoice No.", it is likely a HOSPITAL_BILL.
 - If the image is dark, shadowed, low-contrast, or requires any effort to read — 
 mark is_readable: false. Err on the side of caution. A member can re-upload; extracting from a bad image causes incorrect decisions.`
           }
@@ -102,12 +104,6 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
   const errors: VerificationResult['errors'] = []
 
   if (!requirements) {
-    trace.push({
-      stage: 'DocumentVerification',
-      check: 'RequirementsLookup',
-      result: 'WARNING',
-      detail: `We don't have specific document requirements on file for ${claim.claimCategory} claims. Proceeding with what you've provided.`
-    })
     return { passed: true, errors: [], trace }
   }
 
@@ -125,7 +121,7 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
   const docsWithoutData = claim.documents.filter(doc => !doc.base64Data || !doc.mimeType)
 
   // Push errors for docs with no file data upfront
-  for (const doc of docsWithoutData) {
+  docsWithoutData.forEach((doc, idx) => {
     errors.push({
       documentId: doc.id,
       documentType: 'UNKNOWN',
@@ -136,9 +132,9 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
       stage: 'DocumentVerification',
       check: 'FileDataCheck',
       result: 'FAILED',
-      detail: `"${doc.fileName || doc.id}" arrived without any file data. We weren't able to open it.`
+      detail: DocumentVerifierTraces.fileDataMissing(idx)
     })
-  }
+  })
 
   // Run LLM analysis for all valid docs in parallel
   const settled = await Promise.allSettled(
@@ -155,13 +151,6 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
 
     if (result.status === 'fulfilled') {
       analyses.push(result.value)
-      const docLabel = result.value.detected_type.replace(/_/g, ' ').toLowerCase()
-      trace.push({
-        stage: 'DocumentVerification',
-        check: 'DocumentClassification',
-        result: 'INFO',
-        detail: `We've identified "${doc.fileName || doc.id}" as a ${docLabel}.`
-      })
     } else {
       // LLM failed for this doc — treat as unverifiable
       errors.push({
@@ -174,7 +163,7 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
         stage: 'DocumentVerification',
         check: 'DocumentClassification',
         result: 'FAILED',
-        detail: `We weren't able to identify "${doc.fileName || doc.id}". Please try a sharper photo with good lighting.`
+        detail: DocumentVerifierTraces.classificationFailed(doc.fileName || doc.id)
       })
     }
   }
@@ -184,20 +173,15 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
 
   for (const required of requirements.required) {
     if (!detectedTypes.includes(required)) {
-      const wrongDoc = analyses.find(a => !requirements.required.includes(a.detected_type))
-
-      const categoryLabel = claim.claimCategory.toLowerCase().replace(/_/g, ' ')
       const requiredLabel = required.replace(/_/g, ' ').toLowerCase()
-      const wrongDocLabel = wrongDoc?.detected_type.replace(/_/g, ' ').toLowerCase()
-      const message = wrongDoc
-        ? `We found a ${wrongDocLabel} in your upload, but a ${requiredLabel} is needed for ${categoryLabel} claims. ` +
-          `Could you swap it out? You'll need: ${requirements.required.map(r => r.replace(/_/g, ' ').toLowerCase()).join(' and ')}.`
-        : `We couldn't find a ${requiredLabel} in your upload. ` +
-          `${categoryLabel} claims require: ${requirements.required.map(r => r.replace(/_/g, ' ').toLowerCase()).join(' and ')}.`
+      const foundTypes = analyses.map(a => a.detected_type.replace(/_/g, ' ').toLowerCase())
+      const message = foundTypes.length > 0
+        ? DocumentVerifierTraces.requiredDocumentWrong(foundTypes.join(', '), required)
+        : DocumentVerifierTraces.requiredDocumentMissing(required)
 
       errors.push({
-        documentId: wrongDoc?.documentId || 'missing',
-        documentType: wrongDoc?.detected_type || 'MISSING',
+        documentId: analyses[0]?.documentId || 'missing',
+        documentType: analyses[0]?.detected_type || 'MISSING',
         expectedType: required,
         message
       })
@@ -212,7 +196,7 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
         stage: 'DocumentVerification',
         check: 'RequiredDocumentCheck',
         result: 'PASSED',
-        detail: `Great. We found your ${required.replace(/_/g, ' ').toLowerCase()}.`
+        detail: DocumentVerifierTraces.requiredDocumentFound(required)
       })
     }
   }
@@ -220,18 +204,11 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
   // ── Step 3: Readability check ─────────────────────────────────────────────
   for (const analysis of analyses) {
     if (!analysis.is_readable) {
-      const issues = analysis.readability_issues.length > 0
-        ? analysis.readability_issues.join(', ')
-        : 'unclear image'
-
-      const readableIssues = issues.replace(/_/g, ' ')
-      const message = `We're having a bit of trouble reading this document (${readableIssues}). ` +
-        `A clearer photo would help. Good lighting, all four edges in frame, and no shadows over the text.`
-
+      const message = DocumentVerifierTraces.documentUnreadable(analysis.detected_type, analysis.readability_issues)
       errors.push({
         documentId: analysis.documentId,
         documentType: analysis.detected_type,
-        expectedType: analysis.detected_type,
+        expectedType: analysis.declared,
         message
       })
       trace.push({
@@ -245,7 +222,7 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
         stage: 'DocumentVerification',
         check: 'ReadabilityCheck',
         result: 'PASSED',
-        detail: `Your ${analysis.detected_type.replace(/_/g, ' ').toLowerCase()} is clear and easy to read.`
+        detail: DocumentVerifierTraces.documentReadable(analysis.detected_type)
       })
     }
   }
@@ -265,13 +242,8 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
     const allMatch = normalised.every(d => d.norm === normalised[0].norm)
 
     if (!allMatch) {
-      const nameList = normalised
-        .map(d => `${d.type}: "${d.name}"`)
-        .join(', ')
-
-      const message = `The names on your documents don't quite match. We found ${nameList}. ` +
-        `All documents need to be for the same person.` +
-        `If it's a spelling variation, please re-upload with consistent name spelling. Otherwise, check you've sent the right documents.`
+      const namesMap = new Map(normalised.map(d => [d.type, d.name]))
+      const message = DocumentVerifierTraces.patientNameMismatch(namesMap)
 
       errors.push({
         documentId: 'cross_document',
@@ -290,7 +262,7 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
         stage: 'DocumentVerification',
         check: 'CrossDocumentConsistency',
         result: 'PASSED',
-        detail: `All documents are for the same patient - "${namedDocs[0].patient_name}". Looks good.`
+        detail: DocumentVerifierTraces.patientNameMatch(namedDocs[0].patient_name!)
       })
     }
   }

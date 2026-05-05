@@ -1,5 +1,6 @@
 import { UploadedDocument, ExtractionResult, ExtractedDocument, TraceEntry } from '../types/claim.types'
 import { openai, VISION_MODEL } from '../openai'
+import { InformationExtractorTraces } from '../traces/traceMessages'
 
 // Medical shorthand glossary — included in all extraction prompts
 const MEDICAL_SHORTHAND = `Medical abbreviation reference (expand these in your output):
@@ -302,7 +303,12 @@ export async function extractInformation(
         stage: 'InformationExtraction',
         check: `Extract_${doc.type}`,
         result: result.value.extractionConfidence >= 0.6 ? 'PASSED' : 'WARNING',
-        detail: `Our AI neatly organised the details from your ${docLabel}.${partialFields}`
+        detail: InformationExtractorTraces.dataExtracted(
+          doc.type, 
+          result.value.extractionConfidence,
+          (result.value.lineItems?.length || 0) + (result.value.totalAmount ? 1 : 0),
+          (result.value.lineItems?.length || 0) + 5 // Heuristic for expected fields
+        )
       })
 
       // Log key extracted fields for trace visibility
@@ -311,7 +317,7 @@ export async function extractInformation(
           stage: 'InformationExtraction',
           check: 'ProviderExtracted',
           result: 'INFO',
-          detail: `Treatment was at "${result.value.providerName}".`
+          detail: InformationExtractorTraces.providerIdentified(result.value.providerName)
         })
       }
       if (result.value.diagnosis) {
@@ -319,7 +325,7 @@ export async function extractInformation(
           stage: 'InformationExtraction',
           check: 'DiagnosisExtracted',
           result: 'INFO',
-          detail: `It looks like treatment was for ${result.value.diagnosis}.`
+          detail: InformationExtractorTraces.diagnosisIdentified(result.value.diagnosis)
         })
       }
     } else {
@@ -333,12 +339,11 @@ export async function extractInformation(
       extracted.push(fallback)
       confidenceSum += 0.1
 
-      const docLabel = doc.type.replace(/_/g, ' ').toLowerCase()
       trace.push({
         stage: 'InformationExtraction',
         check: `Extract_${doc.type}`,
         result: 'FAILED',
-        detail: `We weren't able to pull details from your ${docLabel}. We'll continue with the information we have.`
+        detail: InformationExtractorTraces.extractionFailed(doc.type.replace(/_/g, ' ').toLowerCase())
       })
     }
   }

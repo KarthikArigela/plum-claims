@@ -6,14 +6,13 @@ import { detectFraud } from './agents/4-FraudDetector';
 import { synthesizeDecision } from './agents/5-DecisionSynthesizer';
 import { loadPolicy } from './policy/policyLoader';
 
-const engine = new PolicyEngine();
-const policy = loadPolicy();
-
 export async function processClaimPipeline(
   claim: ClaimSubmission,
   claimId: string
 ): Promise<ClaimDecisionOutput> {
-  
+  const engine = new PolicyEngine();
+  const policy = loadPolicy();
+
   const degradedComponents: string[] = [];
   const allTrace: TraceEntry[] = [];
   let systemConfidence = 1.0;
@@ -30,12 +29,18 @@ export async function processClaimPipeline(
 
   // Hard stop — wrong or unreadable documents returned to member
   if (!verification.passed) {
+    // If we couldn't identify even ONE valid document, it's a hard rejection.
+    // "unidentified document" vs "prescription" etc.
+    const hasAnyIdentifiedDoc = verification.trace.some(t =>
+      t.check === 'DocumentClassification' && !t.detail.includes('unidentified document')
+    );
+
     return {
       claimId: claimId,
-      decision: 'MANUAL_REVIEW' as any, // Or REJECTED
+      decision: hasAnyIdentifiedDoc ? 'MANUAL_REVIEW' : 'REJECTED',
       approvedAmount: 0,
       rejectionReasons: verification.errors.map(e => e.message),
-      systemConfidence: 1.0, // High confidence in the error itself
+      systemConfidence: 1.0, // We are 100% sure these documents are invalid
       trace: allTrace,
       degradedComponents: []
     };

@@ -5,13 +5,13 @@ import { randomUUID } from 'crypto';
 
 /**
  * POST /api/claims
- * 
+ *
  * Accepts a multipart/form-data request with:
  *   - claimData: JSON string containing claim metadata (memberId, policyId, etc.)
  *   - documents[]: one or more files (images or PDFs)
- *   - documentTypes[]: corresponding declared types for each file (PRESCRIPTION, HOSPITAL_BILL, etc.)
- * 
- * Converts each uploaded file to base64, constructs UploadedDocument objects,
+ *
+ * Converts each uploaded file to base64, constructs UploadedDocument objects with type 'UNKNOWN'
+ * (document type will be auto-detected by DocumentVerifier via Claude's vision API),
  * then feeds the full ClaimSubmission into the processing pipeline.
  */
 export async function POST(request: NextRequest) {
@@ -48,7 +48,6 @@ export async function POST(request: NextRequest) {
 
     // ── Parse uploaded files ─────────────────────────────────────────
     const files = formData.getAll('documents') as File[];
-    const documentTypes = formData.getAll('documentTypes') as string[];
 
     if (files.length === 0) {
       return NextResponse.json(
@@ -65,7 +64,6 @@ export async function POST(request: NextRequest) {
         const base64Data = buffer.toString('base64');
 
         const mimeType = file.type || 'application/octet-stream';
-        const declaredType = documentTypes[index] || 'UNKNOWN';
 
         // Validate MIME type — only images and PDFs
         const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
@@ -78,7 +76,7 @@ export async function POST(request: NextRequest) {
 
         return {
           id: `doc_${randomUUID().slice(0, 8)}`,
-          type: declaredType,
+          type: 'UNKNOWN',       // Will be auto-detected by DocumentVerifier
           content: '',          // @deprecated — kept for backward compat
           base64Data,
           mimeType,

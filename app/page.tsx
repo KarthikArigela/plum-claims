@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 
 interface UploadedFile {
   file: File;
-  declaredType: string;
   previewUrl: string;
 }
 
@@ -65,8 +64,9 @@ export default function SubmitClaim() {
 
   const [policyData, setPolicyData] = useState<{
     members: { id: string; name: string; relationship: string }[];
-    categories: { id: string; label: string }[];
+    categories: { id: string; label: string; required: string[]; optional: string[] }[];
     documentTypes: string[];
+    documentDescriptions: Record<string, string>;
   } | null>(null);
 
   useEffect(() => {
@@ -99,23 +99,18 @@ export default function SubmitClaim() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addFiles = useCallback((incoming: FileList) => {
-    const added: UploadedFile[] = Array.from(incoming).map((file, i) => ({
+    const added: UploadedFile[] = Array.from(incoming).map((file) => ({
       file,
-      declaredType: DOC_TYPES[i % DOC_TYPES.length] ?? "PRESCRIPTION",
       previewUrl: URL.createObjectURL(file),
     }));
     setFiles(prev => [...prev, ...added]);
-  }, [DOC_TYPES]);
+  }, []);
 
   const removeFile = (idx: number) => {
     setFiles(prev => {
       URL.revokeObjectURL(prev[idx].previewUrl);
       return prev.filter((_, i) => i !== idx);
     });
-  };
-
-  const updateDocType = (idx: number, type: string) => {
-    setFiles(prev => prev.map((f, i) => i === idx ? { ...f, declaredType: type } : f));
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -149,7 +144,6 @@ export default function SubmitClaim() {
 
       files.forEach(f => {
         formData.append("documents", f.file);
-        formData.append("documentTypes", f.declaredType);
       });
 
       const res = await fetch("/api/claims", {
@@ -197,7 +191,7 @@ export default function SubmitClaim() {
           value={member}
           onChange={setMember}
           label="Member"
-          getLabel={m => `${m.id} — ${m.name}`}
+          getLabel={m => `${m.id}: ${m.name}`}
         />
 
         {/* Category + Amount */}
@@ -271,9 +265,40 @@ export default function SubmitClaim() {
               className="hidden"
               onChange={e => { if (e.target.files) addFiles(e.target.files); }}
             />
-          </div>
+        </div>
 
-          {/* File List */}
+        {/* Required Documents Info */}
+        {category && policyData && (
+          <div className="bg-plum-main/40 border border-plum-secondary/50 rounded-md p-4">
+            <p className="text-xs font-semibold text-plum-muted uppercase tracking-wider mb-3">Documents needed</p>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-semibold text-plum-pink mb-2">Required</p>
+                <ul className="space-y-1">
+                  {category.required.map((doc: string) => (
+                    <li key={doc} className="text-xs text-plum-offwhite/80">
+                      • {policyData.documentDescriptions?.[doc] || doc.replace(/_/g, " ")}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {category.optional && category.optional.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-plum-muted/70 mb-2">Optional (helps faster approval)</p>
+                  <ul className="space-y-1">
+                    {category.optional.map((doc: string) => (
+                      <li key={doc} className="text-xs text-plum-offwhite/60">
+                        • {policyData.documentDescriptions?.[doc] || doc.replace(/_/g, " ")}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* File List */}
           {files.length > 0 && (
             <div className="mt-3 flex flex-col gap-2">
               {files.map((f, idx) => (
@@ -283,13 +308,6 @@ export default function SubmitClaim() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-plum-offwhite truncate">{f.file.name}</p>
-                    <select
-                      value={f.declaredType}
-                      onChange={e => updateDocType(idx, e.target.value)}
-                      className="mt-1 bg-plum-main border border-plum-secondary rounded text-xs text-plum-muted px-2 py-1 focus:outline-none focus:border-plum-pink w-full"
-                    >
-                      {DOC_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
-                    </select>
                   </div>
                   <button type="button" onClick={() => removeFile(idx)} className="text-plum-muted hover:text-plum-pink transition-colors shrink-0 p-1">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

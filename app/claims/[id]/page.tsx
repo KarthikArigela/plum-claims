@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { simplifyRejectionReasons } from "@/lib/utils/rejectionMessageMapper";
 
 type Decision = "APPROVED" | "PARTIAL" | "REJECTED" | "MANUAL_REVIEW";
 
@@ -33,6 +34,9 @@ const CHECK_LABELS: Record<string, string> = {
   RequirementsLookup:         "Policy requirements",
   ProviderExtracted:          "Provider identified",
   DiagnosisExtracted:         "Diagnosis noted",
+  // Consistency
+  "Provider Consistency":     "Hospital name check",
+  "Date Consistency":         "Date check",
   // InformationExtractor
   Extract_PRESCRIPTION:       "Prescription details",
   Extract_HOSPITAL_BILL:      "Hospital bill details",
@@ -266,15 +270,20 @@ export default function ClaimResult() {
         {/* Confidence */}
         <div className="mb-5">
           <div className="flex justify-between items-center mb-1.5">
-            <span className="text-xs text-plum-muted uppercase tracking-wider font-semibold">How sure are we</span>
+            <span className="text-xs text-plum-muted uppercase tracking-wider font-semibold">Decision Certainty</span>
             <span className="text-xs text-plum-offwhite font-mono">{(result.systemConfidence * 100).toFixed(0)}%</span>
           </div>
           <div className="h-1.5 w-full bg-plum-main rounded-full overflow-hidden">
             <div
-              className="h-full rounded-full transition-all duration-700"
+              className="h-full rounded-full transition-all duration-1000 ease-out"
               style={{
                 width: `${result.systemConfidence * 100}%`,
-                backgroundColor: result.systemConfidence >= 0.75 ? "var(--color-status-approved)" : result.systemConfidence >= 0.5 ? "var(--color-status-manual)" : "var(--color-status-rejected)"
+                backgroundColor: 
+                  result.decision === "APPROVED" 
+                    ? "var(--color-status-approved)" 
+                    : result.decision === "REJECTED" 
+                    ? "var(--color-status-rejected)" 
+                    : "var(--color-status-manual)"
               }}
             />
           </div>
@@ -283,8 +292,8 @@ export default function ClaimResult() {
         {/* Rejection Reasons */}
         {result.rejectionReasons.length > 0 && (
           <div className="mb-5 bg-plum-pink/10 border border-plum-pink/30 rounded-md px-4 py-3 flex flex-col gap-1.5">
-            <p className="text-xs font-semibold text-plum-pink uppercase tracking-wider">A quick note</p>
-            {result.rejectionReasons.map((r, i) => (
+            <p className="text-xs font-semibold text-plum-pink uppercase tracking-wider">Why we couldn't approve this</p>
+            {Array.from(new Set(simplifyRejectionReasons(result.rejectionReasons))).map((r, i) => (
               <p key={i} className="text-sm text-plum-offwhite/80">{r}</p>
             ))}
           </div>
