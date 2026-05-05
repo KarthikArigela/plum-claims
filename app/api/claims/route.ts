@@ -11,7 +11,7 @@ import { randomUUID } from 'crypto';
  *   - documents[]: one or more files (images or PDFs)
  *
  * Converts each uploaded file to base64, constructs UploadedDocument objects with type 'UNKNOWN'
- * (document type will be auto-detected by DocumentVerifier via Claude's vision API),
+ * (document type will be auto-detected by DocumentVerifier via OpenAI's vision API),
  * then feeds the full ClaimSubmission into the processing pipeline.
  */
 export async function POST(request: NextRequest) {
@@ -106,8 +106,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Also support JSON-only submissions (no file upload) for testing
-// The caller is responsible for providing base64Data in each document
+/*
+ * PUT /api/claims
+ * 
+ * Used for TESTING and JSON-ONLY submissions.
+ * Unlike POST, this expects the caller to have already converted documents to base64.
+*/
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();

@@ -155,7 +155,7 @@ Extract from this Indian hospital discharge summary and return JSON:
 }
 
 function mapToExtractedDocument(docId: string, docType: string, raw: Record<string, unknown>): ExtractedDocument {
-  // Fix B: use null check instead of || to preserve explicit zero confidence
+  // Use null check instead of || to preserve explicit zero confidence
   const confidence = Math.max(0, Math.min(1, raw.confidence != null ? (raw.confidence as number) : 0.5))
   const unreadableFields = (raw.unreadable_fields as string[]) || []
 
@@ -185,7 +185,6 @@ function mapToExtractedDocument(docId: string, docType: string, raw: Record<stri
     raw.pharmacy_name ||
     raw.lab_name ||
     raw.clinic_name
-    // Fix C: removed raw.dental_clinic_name — DENTAL_REPORT prompt returns clinic_name, not dental_clinic_name
   ) as string | undefined
 
   // date — prefer bill date, fall back to sample/report date

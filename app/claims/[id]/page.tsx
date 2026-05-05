@@ -4,8 +4,12 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { simplifyRejectionReasons } from "@/lib/utils/rejectionMessageMapper";
 
+// --- Data Types ---
+
+/** Possible outcomes for a claim review */
 type Decision = "APPROVED" | "PARTIAL" | "REJECTED" | "MANUAL_REVIEW";
 
+/** Individual checks performed by the Claim System */
 interface TraceEntry {
   stage: string;
   check: string;
@@ -13,6 +17,7 @@ interface TraceEntry {
   detail: string;
 }
 
+/** The final payload from the claim processing pipeline */
 interface ClaimResult {
   claimId: string;
   decision: Decision;
@@ -23,94 +28,103 @@ interface ClaimResult {
   degradedComponents: string[];
 }
 
-// Human-readable names for individual check IDs emitted by agents
+// --- Visual Config ---
+
+/** Mapping machine-readable check IDs to friendly labels */
 const CHECK_LABELS: Record<string, string> = {
   // DocumentVerifier
-  FileDataCheck:              "File received",
-  DocumentClassification:     "Document identified",
-  RequiredDocumentCheck:      "Required paperwork",
-  ReadabilityCheck:           "Can we read this?",
-  CrossDocumentConsistency:   "Patient name match",
-  RequirementsLookup:         "Policy requirements",
-  ProviderExtracted:          "Provider identified",
-  DiagnosisExtracted:         "Diagnosis noted",
+  FileDataCheck: "File received",
+  DocumentClassification: "Document identified",
+  RequiredDocumentCheck: "Required paperwork",
+  ReadabilityCheck: "Can we read this?",
+  CrossDocumentConsistency: "Patient name match",
+  RequirementsLookup: "Policy requirements",
+  ProviderExtracted: "Provider identified",
+  DiagnosisExtracted: "Diagnosis noted",
   // Consistency
-  "Provider Consistency":     "Hospital name check",
-  "Date Consistency":         "Date check",
+  "Provider Consistency": "Hospital name check",
+  "Date Consistency": "Date check",
   // InformationExtractor
-  Extract_PRESCRIPTION:       "Prescription details",
-  Extract_HOSPITAL_BILL:      "Hospital bill details",
-  Extract_LAB_REPORT:         "Lab report details",
-  Extract_PHARMACY_BILL:      "Pharmacy bill details",
-  Extract_DENTAL_REPORT:      "Dental report details",
-  Extract_DISCHARGE_SUMMARY:  "Discharge summary",
+  Extract_PRESCRIPTION: "Prescription details",
+  Extract_HOSPITAL_BILL: "Hospital bill details",
+  Extract_LAB_REPORT: "Lab report details",
+  Extract_PHARMACY_BILL: "Pharmacy bill details",
+  Extract_DENTAL_REPORT: "Dental report details",
+  Extract_DISCHARGE_SUMMARY: "Discharge summary",
   // PolicyEngine
-  "Member Exists":            "Member found",
-  MEMBER_NOT_FOUND:           "Member check",
-  "Policy Active":            "Policy active",
-  POLICY_INACTIVE:            "Policy active",
-  "Submission Deadline":      "Submitted on time",
-  SUBMISSION_LATE:            "Submission deadline",
-  "Minimum Amount":           "Claim amount",
-  MINIMUM_AMOUNT_NOT_MET:     "Claim amount",
-  "Initial Waiting Period":   "Waiting period",
-  WAITING_PERIOD:             "Waiting period",
+  "Member Exists": "Member found",
+  MEMBER_NOT_FOUND: "Member check",
+  "Policy Active": "Policy active",
+  POLICY_INACTIVE: "Policy active",
+  "Submission Deadline": "Submitted on time",
+  SUBMISSION_LATE: "Submission deadline",
+  "Minimum Amount": "Claim amount",
+  MINIMUM_AMOUNT_NOT_MET: "Claim amount",
+  "Initial Waiting Period": "Waiting period",
+  WAITING_PERIOD: "Waiting period",
   "Condition Waiting Period": "Condition waiting period",
-  "Category Covered":         "Category covered",
-  CATEGORY_NOT_COVERED:       "Category covered",
-  "Diagnosis Exclusions":     "Exclusions check",
-  EXCLUDED_CONDITION:         "Exclusions check",
-  "Exclusions (Partial)":     "Partial exclusions",
-  "Pre-authorization":        "Pre-authorisation",
-  PRE_AUTH_MISSING:           "Pre-authorisation",
-  "Annual OPD Limit":         "Annual limit",
-  ANNUAL_LIMIT_EXCEEDED:      "Annual limit",
-  "Category Sub-limit":       "Category limit",
-  "Per-claim Limit":          "Per-claim limit",
-  PER_CLAIM_EXCEEDED:         "Per-claim limit",
+  "Category Covered": "Category covered",
+  CATEGORY_NOT_COVERED: "Category covered",
+  "Diagnosis Exclusions": "Exclusions check",
+  EXCLUDED_CONDITION: "Exclusions check",
+  "Exclusions (Partial)": "Partial exclusions",
+  "Pre-authorization": "Pre-authorisation",
+  PRE_AUTH_MISSING: "Pre-authorisation",
+  "Annual OPD Limit": "Annual limit",
+  ANNUAL_LIMIT_EXCEEDED: "Annual limit",
+  "Category Sub-limit": "Category limit",
+  "Per-claim Limit": "Per-claim limit",
+  PER_CLAIM_EXCEEDED: "Per-claim limit",
   // FraudDetector
-  HighValueCheck:             "Claim amount check",
-  AutoManualReviewCheck:      "Review threshold",
-  SameDayClaimsCheck:         "Same-day activity",
-  MonthlyClaimsCheck:         "Monthly activity",
-  FraudRulesCheck:            "Overall integrity",
+  HighValueCheck: "Claim amount check",
+  AutoManualReviewCheck: "Review threshold",
+  SameDayClaimsCheck: "Same-day activity",
+  MonthlyClaimsCheck: "Monthly activity",
+  FraudRulesCheck: "Overall integrity",
   // Financial
-  "Network Discount":         "Network discount",
-  Copay:                      "Your co-pay",
-  "Final Approval":           "Refund calculated",
+  "Network Discount": "Network discount",
+  Copay: "Your co-pay",
+  "Final Approval": "Refund calculated",
 };
 
+/** Labels for the major stages of the AI pipeline */
 const STAGE_LABELS: Record<string, string> = {
-  DocumentVerification:  "Paperwork Check",
+  DocumentVerification: "Paperwork Check",
   InformationExtraction: "Data Review",
-  POLICY_ENGINE:         "Coverage Check",
-  FraudDetection:        "Trust & Integrity",
-  FINANCIAL:             "Your Refund Calculation",
+  POLICY_ENGINE: "Coverage Check",
+  FraudDetection: "Trust & Integrity",
+  FINANCIAL: "Your Refund Calculation",
 };
 
+/** Visual styles (colors, labels, subtitles) for each decision type */
 const DECISION_STYLES: Record<Decision, { color: string; glow: string; label: string; subtitle: string }> = {
-  APPROVED:      { color: "text-status-approved", glow: "shadow-[0_0_20px_rgba(74,222,128,0.25)]",  label: "Fully Approved",      subtitle: "You're all set." },
-  PARTIAL:       { color: "text-status-manual",   glow: "shadow-[0_0_20px_rgba(251,191,36,0.25)]",  label: "Partially Approved",  subtitle: "We've covered what we can." },
-  REJECTED:      { color: "text-status-rejected", glow: "shadow-[0_0_20px_rgba(255,64,82,0.25)]",   label: "Declined",            subtitle: "We couldn't approve this one." },
-  MANUAL_REVIEW: { color: "text-status-manual",   glow: "shadow-[0_0_20px_rgba(251,191,36,0.25)]",  label: "Routing for Care",    subtitle: "A specialist will take a closer look." },
+  APPROVED: { color: "text-status-approved", glow: "shadow-[0_0_20px_rgba(74,222,128,0.25)]", label: "Fully Approved", subtitle: "You're all set." },
+  PARTIAL: { color: "text-status-manual", glow: "shadow-[0_0_20px_rgba(251,191,36,0.25)]", label: "Partially Approved", subtitle: "We've covered what we can." },
+  REJECTED: { color: "text-status-rejected", glow: "shadow-[0_0_20px_rgba(255,64,82,0.25)]", label: "Declined", subtitle: "We couldn't approve this one." },
+  MANUAL_REVIEW: { color: "text-status-manual", glow: "shadow-[0_0_20px_rgba(251,191,36,0.25)]", label: "Routing for Care", subtitle: "A specialist will take a closer look." },
 };
 
+/** Glow colors for the status indicators */
 const RESULT_DOT: Record<string, string> = {
-  PASSED:  "bg-status-approved shadow-[0_0_6px_var(--color-status-approved)]",
-  FAILED:  "bg-status-rejected shadow-[0_0_6px_var(--color-status-rejected)]",
+  PASSED: "bg-status-approved shadow-[0_0_6px_var(--color-status-approved)]",
+  FAILED: "bg-status-rejected shadow-[0_0_6px_var(--color-status-rejected)]",
   WARNING: "bg-status-manual shadow-[0_0_6px_var(--color-status-manual)]",
-  INFO:    "bg-plum-muted",
+  INFO: "bg-plum-muted",
   SKIPPED: "bg-plum-secondary",
 };
 
+/** Text colors for the status badges */
 const RESULT_BADGE: Record<string, string> = {
-  PASSED:  "text-status-approved",
-  FAILED:  "text-status-rejected",
+  PASSED: "text-status-approved",
+  FAILED: "text-status-rejected",
   WARNING: "text-status-manual",
-  INFO:    "text-plum-muted",
+  INFO: "text-plum-muted",
   SKIPPED: "text-plum-secondary",
 };
 
+// --- Helper Functions ---
+
+/** Groups a flat list of AI checks into their parent stages (e.g., all Policy Engine checks together) */
 function groupTraceByStage(trace: TraceEntry[]): { stage: string; entries: TraceEntry[] }[] {
   const order = ["DocumentVerification", "InformationExtraction", "POLICY_ENGINE", "FraudDetection", "FINANCIAL"];
   const map = new Map<string, TraceEntry[]>();
@@ -131,6 +145,7 @@ function groupTraceByStage(trace: TraceEntry[]): { stage: string; entries: Trace
   return result;
 }
 
+/** Determines the overall result of a stage (e.g., if one check fails, the whole stage is 'FAILED') */
 function stageOverallResult(entries: TraceEntry[]): "PASSED" | "FAILED" | "WARNING" | "INFO" {
   if (entries.some(e => e.result === "FAILED")) return "FAILED";
   if (entries.some(e => e.result === "WARNING")) return "WARNING";
@@ -138,6 +153,9 @@ function stageOverallResult(entries: TraceEntry[]): "PASSED" | "FAILED" | "WARNI
   return "INFO";
 }
 
+// --- UI Components ---
+
+/** An expandable section showing the detailed AI checks for a specific pipeline stage */
 function TraceAccordion({ stage, entries }: { stage: string; entries: TraceEntry[] }) {
   const [open, setOpen] = useState(false);
   const overall = stageOverallResult(entries);
@@ -149,15 +167,15 @@ function TraceAccordion({ stage, entries }: { stage: string; entries: TraceEntry
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between p-4 hover:bg-plum-secondary/40 active:bg-plum-secondary/60 transition-colors text-left gap-2"
       >
-        {/* Left side: Dot + Label */}
+        {/* Stage Name & Status Dot */}
         <div className="flex items-center gap-3 min-w-0">
           <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${RESULT_DOT[overall]}`} />
           <span className="font-medium text-sm sm:text-base text-plum-offwhite truncate">
             {STAGE_LABELS[stage] ?? stage}
           </span>
         </div>
-        
-        {/* Right side: Badge + Arrow */}
+
+        {/* Status Badge & Toggle */}
         <div className="flex items-center gap-3 shrink-0 ml-auto">
           <span className="text-[10px] text-plum-muted hidden xs:inline">({entries.length} checks)</span>
           <span className={`text-[10px] font-mono font-bold tracking-wider ${RESULT_BADGE[overall]}`}>
@@ -169,6 +187,7 @@ function TraceAccordion({ stage, entries }: { stage: string; entries: TraceEntry
         </div>
       </button>
 
+      {/* Expanded check details */}
       {open && (
         <div className="border-t border-plum-secondary bg-plum-secondary/5 divide-y divide-plum-secondary/20">
           {entries.map((entry, i) => (
@@ -188,12 +207,17 @@ function TraceAccordion({ stage, entries }: { stage: string; entries: TraceEntry
   );
 }
 
+// --- Main Page Component ---
+
 export default function ClaimResult() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+
+  /** The processed claim data retrieved from the local browser session */
   const [result, setResult] = useState<ClaimResult | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /** Load result from sessionStorage on page load */
   useEffect(() => {
     const stored = sessionStorage.getItem(`claim_${id}`);
     if (stored) {
@@ -202,6 +226,7 @@ export default function ClaimResult() {
     setLoading(false);
   }, [id]);
 
+  /** Loading state UI */
   if (loading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
@@ -214,6 +239,7 @@ export default function ClaimResult() {
     );
   }
 
+  /** Error state (claim not found) */
   if (!result) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 px-4 text-center">
@@ -251,6 +277,7 @@ export default function ClaimResult() {
       {/* Decision Card */}
       <div className={`bg-plum-secondary/20 border border-plum-secondary rounded-xl p-5 sm:p-7 shadow-2xl backdrop-blur-sm ${ds.glow}`}>
 
+        {/* Status & Amount */}
         <div className="flex items-start justify-between border-b border-plum-secondary pb-5 mb-5">
           <div>
             <p className="text-[10px] sm:text-xs font-bold text-plum-muted uppercase tracking-widest mb-1">Decision</p>
@@ -278,12 +305,12 @@ export default function ClaimResult() {
               className="h-full rounded-full transition-all duration-1000 ease-out"
               style={{
                 width: `${result.systemConfidence * 100}%`,
-                backgroundColor: 
-                  result.decision === "APPROVED" 
-                    ? "var(--color-status-approved)" 
-                    : result.decision === "REJECTED" 
-                    ? "var(--color-status-rejected)" 
-                    : "var(--color-status-manual)"
+                backgroundColor:
+                  result.decision === "APPROVED"
+                    ? "var(--color-status-approved)"
+                    : result.decision === "REJECTED"
+                      ? "var(--color-status-rejected)"
+                      : "var(--color-status-manual)"
               }}
             />
           </div>
@@ -299,7 +326,7 @@ export default function ClaimResult() {
           </div>
         )}
 
-        {/* Degraded components warning */}
+        {/* Degraded components System Warnings (e.g., Component Failure) */}
         {result.degradedComponents.length > 0 && (
           <div className="mb-5 bg-status-manual/10 border border-status-manual/30 rounded-md px-4 py-3">
             <p className="text-xs font-semibold text-status-manual uppercase tracking-wider mb-1">Heads up</p>
@@ -307,7 +334,7 @@ export default function ClaimResult() {
           </div>
         )}
 
-        {/* Trace Accordions */}
+        {/* Audit Trail (Step-by-step review) */}
         <div className="flex flex-col gap-3">
           <h3 className="font-serif text-xl sm:text-2xl text-plum-offwhite mb-1">How we got here</h3>
           {groups.map(({ stage, entries }) => (

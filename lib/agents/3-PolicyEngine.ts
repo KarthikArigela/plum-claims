@@ -119,7 +119,7 @@ export class PolicyEngine {
       addCheck('Condition Waiting Period', true, PolicyEngineTraces.conditionWaitingPeriodCompleted('diagnoses'));
     }
 
-    // 7. Category is covered
+    // 7. Category coverage check (The "bucket" e.g. Pharmacy, Dental, Vision)
     const categoryKey = claim.claimCategory.toLowerCase();
     const catRules = policy.opd_categories[categoryKey];
     const catDisplayName = claim.claimCategory.toLowerCase().replace(/_/g, ' ')
@@ -129,7 +129,8 @@ export class PolicyEngine {
       addCheck('CATEGORY_NOT_COVERED', false, PolicyEngineTraces.categoryNotCovered(catDisplayName));
     }
 
-    // 8. Diagnosis/treatment exclusions
+    // 8. Diagnosis/treatment exclusions (The specific "condition" e.g. Maternity, Cosmetic)
+    // Even if a category (like Consultation) is covered, a specific condition might be excluded.
     let hasExclusions = false;
     for (const diagnosis of allDiagnoses) {
       for (const excl of policy.exclusions.conditions) {
@@ -141,8 +142,7 @@ export class PolicyEngine {
     }
 
 
-    // 9. Consistency Checks (Fuzzy)
-    // We check if the user-provided data matches the extracted data with some tolerance.
+    // 9. User Input vs Extracted Document fuzzy Consistency Checks for Health Provider & Treatment Date
     if (claim.hospitalName && extraction.documents.length > 0) {
       const userHospital = claim.hospitalName.toLowerCase().replace(/[^a-z0-9]/g, '');
       const hasHospitalMatch = extraction.documents.some((d: any) => {
@@ -171,8 +171,8 @@ export class PolicyEngine {
         trace[trace.length - 1].result = 'WARNING';
       }
     }
-    
-    // Check line items for exclusions
+
+    // 10. Partial line item Exclusions (Audit line-by-line)
     const categorySpecificExclusions = (policy.exclusions as any)[`${categoryKey}_exclusions`] || [];
     const ruleExclusions = catRules?.excluded_procedures || catRules?.excluded_items || [];
     const allCategoryExclusions = [...categorySpecificExclusions, ...ruleExclusions];
@@ -192,7 +192,7 @@ export class PolicyEngine {
       addCheck('Diagnosis Exclusions', true, PolicyEngineTraces.conditionNotExcluded());
     }
 
-    // 9. Pre-authorization required and obtained
+    // 11. Overall Pre-authorization required and obtained
     let preAuthMissing = false;
     if (catRules?.requires_pre_auth) {
       if (!claim.preAuthObtained) {
@@ -201,7 +201,7 @@ export class PolicyEngine {
       }
     }
 
-    // Check item-level pre-auth
+    // 12. Check line-item-level Pre-authorization required
     if (catRules?.high_value_tests_requiring_pre_auth && catRules.high_value_tests_requiring_pre_auth.length > 0) {
       const threshold = catRules.pre_auth_threshold || Infinity;
       for (const item of allItems) {
@@ -217,7 +217,7 @@ export class PolicyEngine {
       addCheck('Pre-authorization', true, PolicyEngineTraces.preAuthNotRequired());
     }
 
-    // 10. Annual OPD limit (₹50,000)
+    // 13. Annual OPD limit check
     const ytd = claim.ytdClaimsAmount || 0;
     const remainingAnnual = policy.coverage.annual_opd_limit - ytd;
     if (remainingAnnual > 0) {
@@ -227,7 +227,7 @@ export class PolicyEngine {
       addCheck('ANNUAL_LIMIT_EXCEEDED', false, PolicyEngineTraces.annualLimitExhausted(ytd, policy.coverage.annual_opd_limit, resetDate));
     }
 
-    // 11. Category sub-limit check
+    // 14. Category sub-limit check
     const catLimit = catRules?.sub_limit || Infinity;
     if (claim.claimedAmount <= catLimit) {
       addCheck('Category Sub-limit', true, PolicyEngineTraces.withinCategoryLimit(claim.claimedAmount, catLimit, catDisplayName));
@@ -237,20 +237,21 @@ export class PolicyEngine {
       trace[trace.length - 1].result = 'WARNING';
     }
 
-    // 12. Per-claim limit (₹5,000)
+    // 15. Per-claim limit check
     if (claim.claimedAmount <= policy.coverage.per_claim_limit) {
       addCheck('Per-claim Limit', true, PolicyEngineTraces.withinPerClaimLimit(claim.claimedAmount, policy.coverage.per_claim_limit));
     } else {
       addCheck('PER_CLAIM_EXCEEDED', false, PolicyEngineTraces.exceedsPerClaimLimit(claim.claimedAmount, policy.coverage.per_claim_limit));
     }
 
-    // 13. Financial Calculation
+    // 16. Claim Financial Calculation
     if (rejectionReasons.length > 0) {
       return { checks, approvedAmount: 0, decision: 'REJECTED', rejectionReasons, trace, partialApprovalDetails };
     }
 
     let calculatedAmount = claim.claimedAmount;
     
+    // --- Step A: Deduct Partial Exclusions ---
     if (decision === 'PARTIAL') {
       const rejectedAmount = partialApprovalDetails.rejected.reduce((sum, ri) => {
         const item = allItems.find(i => i.description === ri.item);
@@ -260,6 +261,7 @@ export class PolicyEngine {
       partialApprovalDetails.approved = allItems.filter(i => !partialApprovalDetails.rejected.find(r => r.item === i.description)).map(i => i.description);
     }
 
+    // --- Step B: Network Hospital Discount ---
     let networkDiscount = 0;
     if (catRules?.network_discount_percent) {
       if (allItems.length > 0) {
@@ -295,10 +297,7 @@ export class PolicyEngine {
           networkDiscount = (networkEligibleAmount * catRules.network_discount_percent) / 100;
         }
       } else {
-        // If there are no line items extracted, we cannot safely apply discounts.
-        // Or if we want to fallback to overarching claim hospital name when no documents have line items?
-        // To be absolutely safe, let's just use the overarching claim hospital name here 
-        // ONLY if there are literally zero line items extracted (e.g. simple single-doc claims without itemization).
+        // Fallback to overarching claim hospital name for simple claims
         const isNetwork = policy.network_hospitals.some(h => h.toLowerCase() === claim.hospitalName?.toLowerCase());
         if (isNetwork) {
            networkDiscount = (calculatedAmount * catRules.network_discount_percent) / 100;
@@ -311,6 +310,7 @@ export class PolicyEngine {
       }
     }
 
+    // --- Step C: Co-pay Application ---
     let copay = 0;
     if (catRules?.copay_percent) {
       copay = (calculatedAmount * catRules.copay_percent) / 100;
@@ -318,6 +318,7 @@ export class PolicyEngine {
       trace.push({ stage: 'FINANCIAL', check: 'Copay', result: 'INFO', detail: PolicyEngineTraces.copayApplied(catRules.copay_percent, copay) });
     }
 
+    // --- Step D: Final Caps (Annual & Per-Claim) ---
     approvedAmount = Math.min(calculatedAmount, policy.coverage.per_claim_limit, remainingAnnual);
 
     trace.push({ stage: 'FINANCIAL', check: 'Final Approval', result: 'INFO', detail: PolicyEngineTraces.approvalAmount(approvedAmount) });

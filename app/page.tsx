@@ -8,6 +8,9 @@ interface UploadedFile {
   previewUrl: string;
 }
 
+// --- Components ---
+
+/** Custom searchable dropdown with Plum styling */
 function Dropdown<T extends { id: string; label?: string; name?: string }>({
   options, value, onChange, label, getLabel,
 }: {
@@ -20,6 +23,7 @@ function Dropdown<T extends { id: string; label?: string; name?: string }>({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  /** Close dropdown on outside click */
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -59,9 +63,12 @@ function Dropdown<T extends { id: string; label?: string; name?: string }>({
   );
 }
 
+// --- Main Page ---
+
 export default function SubmitClaim() {
   const router = useRouter();
 
+  /** Policy & Form State */
   const [policyData, setPolicyData] = useState<{
     members: { id: string; name: string; relationship: string }[];
     categories: { id: string; label: string; required: string[]; optional: string[] }[];
@@ -69,6 +76,7 @@ export default function SubmitClaim() {
     documentDescriptions: Record<string, string>;
   } | null>(null);
 
+  /** Fetch policy data on mount */
   useEffect(() => {
     fetch("/api/policy")
       .then((r) => r.json())
@@ -77,7 +85,6 @@ export default function SubmitClaim() {
 
   const MEMBERS = policyData?.members ?? [];
   const CATEGORIES = policyData?.categories ?? [];
-  const DOC_TYPES = policyData?.documentTypes ?? [];
 
   const [member, setMember] = useState<any>(null);
   const [category, setCategory] = useState<any>(null);
@@ -88,7 +95,7 @@ export default function SubmitClaim() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Set defaults once policy data is loaded
+  /** Initialize form defaults once policy data is loaded*/
   useEffect(() => {
     if (policyData) {
       if (!member && MEMBERS.length > 0) setMember(MEMBERS[0]);
@@ -98,6 +105,7 @@ export default function SubmitClaim() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  /** Add files with preview URLs */
   const addFiles = useCallback((incoming: FileList) => {
     const added: UploadedFile[] = Array.from(incoming).map((file) => ({
       file,
@@ -106,6 +114,7 @@ export default function SubmitClaim() {
     setFiles(prev => [...prev, ...added]);
   }, []);
 
+  /** Remove file & revoke URL */
   const removeFile = (idx: number) => {
     setFiles(prev => {
       URL.revokeObjectURL(prev[idx].previewUrl);
@@ -113,25 +122,24 @@ export default function SubmitClaim() {
     });
   };
 
+  /** Handle drag & drop for file upload */
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     if (e.dataTransfer.files) addFiles(e.dataTransfer.files);
   };
 
+  /** Process claim submission */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
     if (files.length === 0) {
       setError("We need at least one document to get started. Could you upload your prescription or bill?");
       return;
     }
-
     setIsSubmitting(true);
 
     try {
       const formData = new FormData();
-
       const claimData = {
         memberId:       member.id,
         policyId:       "PLUM_GHI_2024",
@@ -141,10 +149,7 @@ export default function SubmitClaim() {
         hospitalName:   hospitalName || undefined,
       };
       formData.append("claimData", JSON.stringify(claimData));
-
-      files.forEach(f => {
-        formData.append("documents", f.file);
-      });
+      files.forEach(f => formData.append("documents", f.file));
 
       const res = await fetch("/api/claims", {
         method: "POST",
@@ -158,9 +163,8 @@ export default function SubmitClaim() {
 
       const result = await res.json();
 
-      // Store result in sessionStorage — results page reads this
+      // Store result in sessionStorage. Results page reads this
       sessionStorage.setItem(`claim_${result.claimId}`, JSON.stringify(result));
-
       router.push(`/claims/${result.claimId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "We have hit a setback. Please try again in a moment.");
@@ -171,6 +175,7 @@ export default function SubmitClaim() {
   return (
     <div className="max-w-lg mx-auto px-4 sm:px-6 py-8 sm:py-12 flex flex-col gap-6">
 
+      {/* Header */}
       <div>
         <h1 className="font-serif text-3xl sm:text-4xl text-plum-offwhite mb-2">
           Let&apos;s get your claim <em className="text-plum-muted">sorted.</em>
@@ -182,10 +187,10 @@ export default function SubmitClaim() {
 
       <form onSubmit={handleSubmit} className="bg-plum-secondary/30 border border-plum-secondary rounded-xl p-5 sm:p-7 flex flex-col gap-5 shadow-2xl relative overflow-visible backdrop-blur-sm">
 
-        {/* Pink accent bar */}
+        {/* Design Accent */}
         <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-plum-main via-plum-pink to-plum-main rounded-t-xl" />
 
-        {/* Member */}
+        {/* Member Selection */}
         <Dropdown
           options={MEMBERS}
           value={member}
@@ -194,7 +199,7 @@ export default function SubmitClaim() {
           getLabel={m => `${m.id}: ${m.name}`}
         />
 
-        {/* Category + Amount */}
+        {/* Category & Amount */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-4">
           <Dropdown
             options={CATEGORIES}
@@ -222,7 +227,7 @@ export default function SubmitClaim() {
             <input
               type="date"
               value={treatmentDate}
-              max={new Date().toISOString().split("T")[0]} // Prevent years like 275760
+              max={new Date().toISOString().split("T")[0]}
               onChange={e => setTreatmentDate(e.target.value)}
               required
               className="w-full bg-plum-main/80 border border-plum-secondary rounded-md px-4 py-[11px] text-plum-offwhite text-base focus:outline-none focus:border-plum-pink transition-colors"
@@ -267,7 +272,7 @@ export default function SubmitClaim() {
             />
         </div>
 
-        {/* Required Documents Info */}
+        {/* Required Documents Checklist */}
         {category && policyData && (
           <div className="bg-plum-main/40 border border-plum-secondary/50 rounded-md p-4">
             <p className="text-xs font-semibold text-plum-muted uppercase tracking-wider mb-3">Documents needed</p>
@@ -298,7 +303,7 @@ export default function SubmitClaim() {
           </div>
         )}
 
-        {/* File List */}
+        {/* Active File List */}
           {files.length > 0 && (
             <div className="mt-3 flex flex-col gap-2">
               {files.map((f, idx) => (
@@ -320,7 +325,7 @@ export default function SubmitClaim() {
           )}
         </div>
 
-        {/* Error */}
+        {/* Notifications & Submit */}
         {error && (
           <div className="bg-plum-pink/10 border border-plum-pink/40 rounded-md px-4 py-3 text-sm text-plum-pink">
             {error}

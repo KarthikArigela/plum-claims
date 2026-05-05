@@ -228,7 +228,7 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
   }
 
   // ── Step 4: Cross-document patient name consistency ───────────────────────
-  // Fix A: filter out null AND empty-string patient names
+  // filter out null AND empty-string patient names
   const namedDocs = analyses.filter(a => a.patient_name !== null && a.patient_name.trim() !== '')
 
   if (namedDocs.length > 1) {
