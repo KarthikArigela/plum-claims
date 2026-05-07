@@ -50,6 +50,25 @@ export default function RootLayout({
                 Claims Intelligence
               </span>
             </div>
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              <a 
+                href="https://github.com/KarthikArigela/plum-claims" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 border border-plum-offwhite/20 rounded text-[10px] sm:text-xs font-bold tracking-widest text-plum-offwhite hover:bg-plum-offwhite/5 transition-colors uppercase"
+              >
+                Github
+              </a>
+              <a 
+                href="https://drive.google.com/drive/folders/1tUxlxkhmsV4kbsGPgpapW6ze1Mk9g5gq?usp=sharing" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-plum-pink rounded text-[10px] sm:text-xs font-bold tracking-widest text-white hover:bg-[#e03848] transition-colors flex items-center gap-1.5 uppercase shadow-[0_4px_14px_rgba(255,64,82,0.2)]"
+              >
+                Architecture
+              </a>
+            </div>
           </div>
         </nav>
 

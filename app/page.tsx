@@ -211,11 +211,18 @@ export default function SubmitClaim() {
           <div>
             <label className="block text-xs font-semibold text-plum-muted uppercase tracking-wider mb-2">Amount (₹)</label>
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               value={amount}
-              onChange={e => setAmount(e.target.value)}
+              onInput={e => {
+                const val = (e.target as HTMLInputElement).value.replace(/[^0-9]/g, '');
+                const capped = val.slice(0, 8);
+                (e.target as HTMLInputElement).value = capped;
+                setAmount(capped);
+              }}
               required
-              className="w-full bg-plum-main/80 border border-plum-secondary rounded-md px-4 py-3 text-plum-offwhite text-base focus:outline-none focus:border-plum-pink transition-colors"
+              placeholder="e.g. 5424"
+              className="w-full bg-plum-main/80 border border-plum-secondary rounded-md px-4 py-3 text-plum-offwhite text-base focus:outline-none focus:border-plum-pink transition-colors placeholder-plum-muted/30"
             />
           </div>
         </div>
@@ -227,7 +234,7 @@ export default function SubmitClaim() {
             <input
               type="date"
               value={treatmentDate}
-              max={new Date().toISOString().split("T")[0]}
+              max={new Date().toLocaleDateString('en-CA')}
               onChange={e => setTreatmentDate(e.target.value)}
               required
               className="w-full bg-plum-main/80 border border-plum-secondary rounded-md px-4 py-[11px] text-plum-offwhite text-base focus:outline-none focus:border-plum-pink transition-colors"

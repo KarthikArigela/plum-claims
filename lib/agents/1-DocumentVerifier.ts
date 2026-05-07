@@ -82,6 +82,11 @@ mark is_readable: false. Err on the side of caution. A member can re-upload; ext
   }
 }
 
+const DOC_SYNONYMS: Record<string, string[]> = {
+  'LAB_REPORT': ['LAB_REPORT', 'DIAGNOSTIC_REPORT'],
+  'DIAGNOSTIC_REPORT': ['DIAGNOSTIC_REPORT', 'LAB_REPORT'],
+}
+
 function normaliseName(name: string): string {
   const HONORIFICS = new Set(['mr', 'mrs', 'ms', 'miss', 'dr', 'prof', 'master', 'sri', 'smt', 'shri'])
   
@@ -172,7 +177,10 @@ export async function verifyDocuments(claim: ClaimSubmission): Promise<Verificat
   const detectedTypes = analyses.map(a => a.detected_type)
 
   for (const required of requirements.required) {
-    if (!detectedTypes.includes(required)) {
+    const synonyms = DOC_SYNONYMS[required] || [required]
+    const hasRequired = analyses.some(a => synonyms.includes(a.detected_type))
+
+    if (!hasRequired) {
       const requiredLabel = required.replace(/_/g, ' ').toLowerCase()
       const foundTypes = analyses.map(a => a.detected_type.replace(/_/g, ' ').toLowerCase())
       const message = foundTypes.length > 0

@@ -79,7 +79,7 @@ class PlumMockEngine:
         
         # Meta info
         draw.text((40, 150), f"Bill to: {patient_name}", font=self.font_regular, fill=PLUM_MAIN)
-        draw.text((600, 150), "Date: 01-Nov-2024", font=self.font_regular, fill=PLUM_MAIN)
+        draw.text((600, 150), "Date: 01-May-2026", font=self.font_regular, fill=PLUM_MAIN)
         
         # Table Header
         draw.rectangle([40, 200, 760, 240], fill=PLUM_SECONDARY)
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     if not os.path.exists("mocks"): os.makedirs("mocks")
 
     # 1. TC004 - Clean Happy Path (Rajesh Kumar)
-    rx = engine.generate_prescription("Rajesh Kumar", "Viral Fever and URI", "01-Nov-2024")
+    rx = engine.generate_prescription("Rajesh Kumar", "Viral Fever and URI", "01-May-2026")
     rx.save("mocks/tc004_prescription.jpg")
     
     bill_items = [("Consultation Fee", 1000), ("CBC Test", 300), ("Dengue NS1", 200)]
@@ -181,7 +181,7 @@ if __name__ == "__main__":
     pharma_bill.save("mocks/tc002_blurry_pharma.jpg")
 
     # 3. TC011 - The "Stamp Over Text" (Low Confidence)
-    kavita_rx = engine.generate_prescription("Kavita Nair", "Severe Osteoarthritis", "28-Oct-2024")
+    kavita_rx = engine.generate_prescription("Kavita Nair", "Severe Osteoarthritis", "3-May-2026")
     kavita_rx = engine.add_rubber_stamp(kavita_rx, "DUPLICATE COPY", color=(180, 20, 20, 150))
     kavita_rx.save("mocks/tc011_stamped_rx.jpg")
 

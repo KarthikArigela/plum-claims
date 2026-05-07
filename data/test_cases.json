@@ -8,9 +8,9 @@
       "description": "Member submits two prescriptions for a consultation claim that requires a prescription and a hospital bill.",
       "input": {
         "member_id": "EMP001",
-        "policy_id": "PLUM_GHI_2024",
+        "policy_id": "PLUM_GHI_2026",
         "claim_category": "CONSULTATION",
-        "treatment_date": "2024-11-01",
+        "treatment_date": "2026-11-01",
         "claimed_amount": 1500,
         "documents": [
           {
@@ -40,9 +40,9 @@
       "description": "Member uploads a valid prescription but a blurry, unreadable photo of their pharmacy bill.",
       "input": {
         "member_id": "EMP004",
-        "policy_id": "PLUM_GHI_2024",
+        "policy_id": "PLUM_GHI_2026",
         "claim_category": "PHARMACY",
-        "treatment_date": "2024-10-25",
+        "treatment_date": "2026-10-25",
         "claimed_amount": 800,
         "documents": [
           {
@@ -74,9 +74,9 @@
       "description": "The prescription is for Rajesh Kumar but the hospital bill is for a different patient, Arjun Mehta.",
       "input": {
         "member_id": "EMP001",
-        "policy_id": "PLUM_GHI_2024",
+        "policy_id": "PLUM_GHI_2026",
         "claim_category": "CONSULTATION",
-        "treatment_date": "2024-11-01",
+        "treatment_date": "2026-11-01",
         "claimed_amount": 1500,
         "documents": [
           {
@@ -108,9 +108,9 @@
       "description": "Complete, valid consultation claim with correct documents, valid member, covered treatment, within all limits.",
       "input": {
         "member_id": "EMP001",
-        "policy_id": "PLUM_GHI_2024",
+        "policy_id": "PLUM_GHI_2026",
         "claim_category": "CONSULTATION",
-        "treatment_date": "2024-11-01",
+        "treatment_date": "2026-11-01",
         "claimed_amount": 1500,
         "ytd_claims_amount": 5000,
         "documents": [
@@ -121,7 +121,7 @@
               "doctor_name": "Dr. Arun Sharma",
               "doctor_registration": "KA/45678/2015",
               "patient_name": "Rajesh Kumar",
-              "date": "2024-11-01",
+              "date": "2026-11-01",
               "diagnosis": "Viral Fever",
               "medicines": [
                 "Paracetamol 650mg",
@@ -135,7 +135,7 @@
             "content": {
               "hospital_name": "City Clinic, Bengaluru",
               "patient_name": "Rajesh Kumar",
-              "date": "2024-11-01",
+              "date": "2026-11-01",
               "line_items": [
                 {
                   "description": "Consultation Fee",
@@ -165,12 +165,12 @@
     {
       "case_id": "TC005",
       "case_name": "Waiting Period — Diabetes",
-      "description": "Member joined 2024-09-01. Claims for diabetes treatment on 2024-10-15, which is within the 90-day waiting period for diabetes.",
+      "description": "Member joined 2026-09-01. Claims for diabetes treatment on 2026-10-15, which is within the 90-day waiting period for diabetes.",
       "input": {
         "member_id": "EMP005",
-        "policy_id": "PLUM_GHI_2024",
+        "policy_id": "PLUM_GHI_2026",
         "claim_category": "CONSULTATION",
-        "treatment_date": "2024-10-15",
+        "treatment_date": "2026-10-15",
         "claimed_amount": 3000,
         "documents": [
           {
@@ -192,7 +192,7 @@
             "actual_type": "HOSPITAL_BILL",
             "content": {
               "patient_name": "Vikram Joshi",
-              "date": "2024-10-15",
+              "date": "2026-10-15",
               "total": 3000
             }
           }
@@ -214,9 +214,9 @@
       "description": "Bill includes root canal treatment (covered) and teeth whitening (cosmetic, excluded). System must approve only the covered procedure.",
       "input": {
         "member_id": "EMP002",
-        "policy_id": "PLUM_GHI_2024",
+        "policy_id": "PLUM_GHI_2026",
         "claim_category": "DENTAL",
-        "treatment_date": "2024-10-15",
+        "treatment_date": "2026-10-15",
         "claimed_amount": 12000,
         "documents": [
           {
@@ -255,9 +255,9 @@
       "description": "MRI scan costing ₹15,000 submitted without pre-authorization. Policy requires pre-auth for MRI above ₹10,000.",
       "input": {
         "member_id": "EMP007",
-        "policy_id": "PLUM_GHI_2024",
+        "policy_id": "PLUM_GHI_2026",
         "claim_category": "DIAGNOSTIC",
-        "treatment_date": "2024-11-02",
+        "treatment_date": "2026-11-02",
         "claimed_amount": 15000,
         "documents": [
           {
@@ -311,9 +311,9 @@
       "description": "Claimed amount of ₹7,500 exceeds the per-claim limit of ₹5,000.",
       "input": {
         "member_id": "EMP003",
-        "policy_id": "PLUM_GHI_2024",
+        "policy_id": "PLUM_GHI_2026",
         "claim_category": "CONSULTATION",
-        "treatment_date": "2024-10-20",
+        "treatment_date": "2026-10-20",
         "claimed_amount": 7500,
         "ytd_claims_amount": 10000,
         "documents": [
@@ -366,26 +366,26 @@
       "description": "Member EMP008 has already submitted 3 claims today before this one arrives. This is the 4th claim from the same member on the same day.",
       "input": {
         "member_id": "EMP008",
-        "policy_id": "PLUM_GHI_2024",
+        "policy_id": "PLUM_GHI_2026",
         "claim_category": "CONSULTATION",
-        "treatment_date": "2024-10-30",
+        "treatment_date": "2026-10-30",
         "claimed_amount": 4800,
         "claims_history": [
           {
             "claim_id": "CLM_0081",
-            "date": "2024-10-30",
+            "date": "2026-10-30",
             "amount": 1200,
             "provider": "City Clinic A"
           },
           {
             "claim_id": "CLM_0082",
-            "date": "2024-10-30",
+            "date": "2026-10-30",
             "amount": 1800,
             "provider": "City Clinic B"
           },
           {
             "claim_id": "CLM_0083",
-            "date": "2024-10-30",
+            "date": "2026-10-30",
             "amount": 2100,
             "provider": "Wellness Center"
           }
@@ -423,9 +423,9 @@
       "description": "Valid claim at Apollo Hospitals, a network hospital. Network discount must be applied before co-pay.",
       "input": {
         "member_id": "EMP010",
-        "policy_id": "PLUM_GHI_2024",
+        "policy_id": "PLUM_GHI_2026",
         "claim_category": "CONSULTATION",
-        "treatment_date": "2024-11-03",
+        "treatment_date": "2026-11-03",
         "claimed_amount": 4500,
         "hospital_name": "Apollo Hospitals",
         "ytd_claims_amount": 8000,
@@ -481,9 +481,9 @@
       "description": "One component of your system fails mid-processing (simulate with the flag below). The overall pipeline must continue, produce a decision, and make the failure visible in the output with an appropriately reduced confidence score.",
       "input": {
         "member_id": "EMP006",
-        "policy_id": "PLUM_GHI_2024",
+        "policy_id": "PLUM_GHI_2026",
         "claim_category": "ALTERNATIVE_MEDICINE",
-        "treatment_date": "2024-10-28",
+        "treatment_date": "2026-10-28",
         "claimed_amount": 4000,
         "simulate_component_failure": true,
         "documents": [
@@ -533,9 +533,9 @@
       "description": "Member claims for bariatric consultation and a diet program. Obesity treatment is explicitly excluded under the policy.",
       "input": {
         "member_id": "EMP009",
-        "policy_id": "PLUM_GHI_2024",
+        "policy_id": "PLUM_GHI_2026",
         "claim_category": "CONSULTATION",
-        "treatment_date": "2024-10-18",
+        "treatment_date": "2026-10-18",
         "claimed_amount": 8000,
         "documents": [
           {
