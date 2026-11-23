@@ -1,0 +1,70 @@
+[project]
+name = "plum-claims-backend"
+version = "0.1.0"
+description = "Plum Health Insurance AI Claims Processing Backend"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi[standard]>=0.165.0",
+    "uvicorn[standard]>=0.54.0",
+    "sqlmodel>=0.0.50",
+    "asyncpg>=0.32.0",
+    "alembic>=1.20.1",
+    "pydantic>=2.14.4",
+    "pydantic-settings>=2.16.0",
+    "python-multipart>=0.0.34",
+    "httpx>=0.28.1",
+    "openai>=3.57.0",
+    "langgraph>=1.2.24",
+    "langgraph-checkpoint-postgres>=3.2.1",
+    "pymupdf>=2.1",
+    "pillow>=13.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.5.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.6",
+    "mypy>=2.4.1",
+]
+
+[build-system]
+requires = ["setuptools>=75.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "W", "C4", "C90", "PTH", "T20", "TID", "TRY", "SIM", "ARG", "ERA", "PD", "PL", "RSE", "RET", "TCH"]
+ignore = ["S101", "T201"]
+fixable = ["ALL"]
+unfixable = ["T201"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+
+[tool.mypy]
+python_version = "3.14"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+strict_optional = true
+show_error_codes = true
+pretty = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
