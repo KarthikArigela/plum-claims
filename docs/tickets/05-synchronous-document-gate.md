@@ -1,17 +1,41 @@
-# 05: Gate claims on page-level document validation
+# 05: Check claim documents before processing
 
-**What to build:** A persisted claim is checked page by page before processing; the member receives a specific next step for clear document problems, uncertain pages go to review, and only a complete confident document set is queued.
+**Goal:** A submitted claim is checked page by page, so clear document problems receive specific next steps and only a complete, confident document set proceeds to processing.
 
-**Blocked by:** 03 — Persist idempotent claim submissions; 04 — Prove Decisions API page classification.
+**Blocked by:** 03 — Persist claim submissions safely; 04 — Prove page classification with the Decisions API.
 
 **Status:** ready-for-agent
 
-- [ ] PDF pages render safely to page images; an uploaded image is one page; preserve document ID, page number, hash, and stable page mapping.
-- [ ] Decisions adapter classifies pages in batches up to 10 with one independent same-question/page answer each; labels and outputs are schema-validated.
-- [ ] Initial labels cover `PRESCRIPTION`, `HOSPITAL_BILL`, `LAB_REPORT`, `DIAGNOSTIC_REPORT`, `PHARMACY_BILL`, `DISCHARGE_SUMMARY`, `DENTAL_REPORT`, `OTHER`, and `UNREADABLE`, with policy-configured equivalences where needed.
-- [ ] Backend reads required/optional document types from the selected policy and deterministically computes gate outcome; no model policy decisions or free-form member instructions.
-- [ ] Clear wrong/missing requirements yield `NEEDS_DOCUMENTS` with detected/required types and specific actionable instructions; claim ID and trace are preserved and no `PROCESS_CLAIM` job is created.
-- [ ] Any low-confidence/unreadable page yields `DOCUMENT_REVIEW_REQUIRED`, taking precedence over an apparently missing type; no processing job is created.
-- [ ] If exact patient names are needed to explain a cross-document mismatch, a conditional Responses API structured extraction runs on relevant pages; uncertain names route to review.
-- [ ] A confident complete set yields `PROCESSING` and exactly one durable `PROCESS_CLAIM` job in the same transaction as the status change.
-- [ ] Tests include mixed PDF page types, multiple files, wrong/missing types, confidence boundary, uncertainty precedence, patient mismatch, and provider-independent mocked results.
+## Scope
+
+- Classify each PDF page or image separately, retaining its document and page identity, and compare results with the selected policy's document requirements.
+- Use the Decisions API capability proven in ticket 04 — Prove page classification with the Decisions API, with bounded batches and validated responses. Generate member guidance from backend rules, not model-written policy decisions.
+- Persist the gate outcome and create a durable processing job only when the document set passes.
+- Use conditional structured name extraction when needed to explain a cross-document patient mismatch.
+
+## Out of scope
+
+- Document correction and explicit validation retry cycles, which are covered by ticket 6: Recover interrupted validation and correct documents.
+- Running processing jobs, extracting full claim evidence, and making claim decisions.
+- Frontend implementation.
+
+## Acceptance criteria
+
+- [ ] Each PDF page and uploaded image has its own validated classification linked to the correct document and page, including mixed-type PDFs and multiple files.
+- [ ] Classifications use the agreed document labels, including `OTHER` and `UNREADABLE`, with applicable policy-configured equivalences. Batches contain at most 10 pages and each page receives its own answer; concurrency is bounded according to the backend specification.
+- [ ] The confidence threshold is configurable and its selection is informed by labeled examples; model confidence is not treated as calibrated certainty.
+- [ ] Clearly missing or wrong required documents produce `NEEDS_DOCUMENTS`, retain the claim ID and gate evidence, and name the detected and required types with a specific next step. No processing job is created.
+- [ ] A low-confidence or unreadable page produces `DOCUMENT_REVIEW_REQUIRED` instead of an assumed missing-document result, and no processing job is created.
+- [ ] When exact names are needed to explain a patient mismatch, relevant pages are checked; uncertain names route to review rather than a guessed mismatch.
+- [ ] A confident, complete document set produces `PROCESSING` and exactly one durable `PROCESS_CLAIM` job, recorded atomically with the status change.
+- [ ] Provider failures are not reported as document problems: the claim and files are retained in `VALIDATION_RETRY_PENDING`, with no processing job. Bounded retries and recovery are completed in ticket 06.
+
+## Verification
+
+- Exercise complete, clearly incomplete, and uncertain document sets, including a mixed-page PDF, using synthetic files and mocked provider results.
+- Run focused tests for page mapping, output validation, confidence boundaries, patient mismatch, job creation, and provider failure. Normal checks should not require AI credentials.
+- Run relevant backend lint and type checks; report unrelated existing failures separately.
+
+## Implementation boundaries
+
+Keep changes focused on the document gate, page classification, required gate records and job creation, and their tests. Use the selected policy and agreed backend specification; do not build the worker or broader claim workflow.
