@@ -1,15 +1,37 @@
 # 08: Extract structured claim evidence
 
-**What to build:** After the document gate passes, the worker extracts relevant claim facts from the complete document set and preserves which page supports each fact.
+**Goal:** Extract the facts needed to evaluate a claim and show which document page supports each fact, without guessing missing information.
 
-**Blocked by:** 07 — Process durable jobs in a separate worker.
+**Blocked by:** 07 — Run durable jobs in a separate worker.
 
 **Status:** ready-for-agent
 
-- [ ] Responses API adapter extracts patient, diagnosis/treatment, dates, doctor information, bill totals, line items, and document-specific details as applicable.
-- [ ] Structured output is constrained by a strict schema and validated again in backend code.
-- [ ] Missing, unreadable, ambiguous, and contradictory values are represented explicitly; the model never fills gaps with guesses.
-- [ ] Extracted values retain source document/page references and confidence/evidence needed by trace and policy checks.
-- [ ] Provider is called with no policy authority or unnecessary tools; only synthetic/assignment-provided documents are used.
-- [ ] Transient errors are bounded by stage retry policy; invalid output or exhausted/permanent failures degrade safely and do not erase prior state.
-- [ ] Tests use mocked Responses outputs and cover valid, partial, malformed, missing-field, unreadable, and provider-failure cases.
+## Scope
+
+- Extract patient, treatment, dates, doctor details, bill amounts, line items, and other relevant facts from a passed document set using structured AI output.
+- Validate the output and retain source references, confidence, and uncertainty for later policy checks and trace.
+- Handle extraction failures safely within the worker's bounded retry rules.
+
+## Out of scope
+
+- Policy decisions, final claim outcomes, and the complete cross-stage trace and checkpoint workflow.
+- Live-model-dependent ordinary tests and frontend implementation.
+
+## Acceptance criteria
+
+- [ ] Valid extraction returns structured claim facts appropriate to the supplied documents, with references to the supporting document and page.
+- [ ] Missing, unreadable, ambiguous, and conflicting facts are represented explicitly; unsupported values are not invented.
+- [ ] Malformed or incomplete provider output is validated before use and cannot silently become trusted policy evidence.
+- [ ] The model has no policy-decision authority or unnecessary tools. Document content and sensitive extracted values are not written to ordinary logs.
+- [ ] Provider failures and invalid output follow bounded retry or safe failure handling without erasing the claim or prior results.
+- [ ] The extraction stage can be exercised using the worker's processing boundary without marking the overall claim complete before later stages exist.
+
+## Verification
+
+- Exercise extraction with synthetic or assignment-provided documents and mocked responses covering valid and partial results.
+- Run focused tests for source references, missing or conflicting facts, invalid output, unreadable pages, and provider failures; normal checks should not require AI credentials.
+- Run relevant backend lint and type checks; report unrelated existing failures separately.
+
+## Implementation boundaries
+
+Keep changes focused on structured extraction, its provider boundary, evidence representation, and tests. Use the agreed backend specification; policy calculations and final decisions remain later work.
